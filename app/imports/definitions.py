@@ -1,0 +1,130 @@
+IMPORT_DEFINITIONS = {
+    "SALES": {
+        "label": "Ventes",
+        "description": "Une ligne par produit vendu. Une référence métier peut regrouper plusieurs produits.",
+        "required": [
+            "sale_reference",
+            "sale_date",
+            "product_code",
+            "quantity_packages",
+            "unit_price",
+        ],
+        "optional": [
+            "sale_time",
+            "customer_code",
+            "salesperson_name",
+            "payment_method",
+            "payment_status",
+            "discount_amount",
+            "notes",
+        ],
+        "automatic": [
+            "sale_number",
+            "quantity_units",
+            "subtotal",
+            "total_amount",
+            "gross_margin",
+            "promotion_applied",
+            "stock_movement",
+        ],
+        "example": [
+            {
+                "sale_reference": "FACTURE-2026-0001",
+                "sale_date": "2026-07-15",
+                "sale_time": "09:30",
+                "customer_code": "",
+                "product_code": "PRD-000006",
+                "quantity_packages": 5,
+                "unit_price": 8600,
+                "discount_amount": 0,
+                "payment_method": "CASH",
+                "payment_status": "PAID",
+                "salesperson_name": "Aminata",
+                "notes": "",
+            }
+        ],
+    },
+    "STOCKS": {
+        "label": "Stocks journaliers",
+        "description": "Un snapshot par produit et par date.",
+        "required": [
+            "stock_date",
+            "product_code",
+            "opening_stock",
+            "closing_stock",
+        ],
+        "optional": [
+            "quantity_received",
+            "quantity_sold",
+            "quantity_damaged",
+            "other_entries",
+            "other_outputs",
+        ],
+        "automatic": ["minimum_stock", "stockout_flag"],
+        "example": [
+            {
+                "stock_date": "2026-07-15",
+                "product_code": "PRD-000006",
+                "opening_stock": 85,
+                "quantity_received": 0,
+                "quantity_sold": 5,
+                "quantity_damaged": 0,
+                "other_entries": 0,
+                "other_outputs": 0,
+                "closing_stock": 80,
+            }
+        ],
+    },
+    "PRODUCTS": {
+        "label": "Produits",
+        "description": "Nouveaux produits rattachés à une catégorie existante.",
+        "required": [
+            "name",
+            "category_code",
+            "package_type",
+            "units_per_package",
+            "selling_price",
+        ],
+        "optional": [
+            "brand",
+            "volume_value",
+            "volume_unit",
+            "purchase_price",
+            "minimum_stock",
+            "reorder_quantity",
+        ],
+        "automatic": ["code"],
+        "example": [
+            {
+                "name": "Nouveau produit",
+                "category_code": "GAZ",
+                "brand": "Marque",
+                "volume_value": 50,
+                "volume_unit": "CL",
+                "package_type": "CARTON",
+                "units_per_package": 24,
+                "purchase_price": 7000,
+                "selling_price": 8500,
+                "minimum_stock": 30,
+                "reorder_quantity": 80,
+            }
+        ],
+    },
+    "CUSTOMERS": {
+        "label": "Clients",
+        "description": "Nouveaux clients rattachés à un type existant.",
+        "required": ["name", "customer_type_code"],
+        "optional": ["phone", "zone", "district", "city"],
+        "automatic": ["code"],
+        "example": [
+            {
+                "name": "Boutique du quartier",
+                "customer_type_code": "BOUTIQUE",
+                "phone": "+22370000000",
+                "zone": "Bamako",
+                "district": "ACI 2000",
+                "city": "Bamako",
+            }
+        ],
+    },
+}

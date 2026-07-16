@@ -1,0 +1,12 @@
+streamlit
+alembic
+pandas
+openpyxl
+numpy
+plotly
+scikit-learn
+xgboost
+SQLAlchemy
+python-dotenv
+psycopg[binary]
+Faker
