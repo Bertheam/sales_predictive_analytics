@@ -332,6 +332,88 @@ docker compose exec app python -m alembic current
 Les fichiers `*.backup` et `*.dump` sont exclus de l'image Docker. Conservez-les
 dans un emplacement sécurisé et ne les ajoutez jamais au dépôt Git.
 
+## Déploiement sur Railway
+
+Railway détecte automatiquement le `Dockerfile` situé à la racine. Le service
+web doit être relié à un PostgreSQL Railway managé ; le service `db` du fichier
+Compose est réservé au développement local.
+
+### Variables du service Streamlit
+
+Dans l'onglet **Variables** du service applicatif, configurez :
+
+```dotenv
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+INITIALIZE_DATABASE=false
+```
+
+Adaptez `Postgres` si le service PostgreSQL porte un autre nom dans Railway.
+`DATABASE_URL` est prioritaire sur les variables `DB_HOST`, `DB_PORT`,
+`DB_NAME`, `DB_USER` et `DB_PASSWORD`.
+
+Railway injecte automatiquement `PORT`. Le conteneur démarre Streamlit avec :
+
+```bash
+python -m streamlit run app/main.py \
+  --server.address=0.0.0.0 \
+  --server.port=${PORT:-8501}
+```
+
+Dans **Settings → Deploy**, laissez de préférence le champ **Start Command**
+vide afin que Railway utilise l'`ENTRYPOINT` et le `CMD` du Dockerfile. Si une
+commande personnalisée est indispensable, utilisez explicitement un shell :
+
+```bash
+sh -c 'python -m alembic upgrade head && python -m streamlit run app/main.py --server.address=0.0.0.0 --server.port=${PORT:-8501}'
+```
+
+Le démarrage Railway suit uniquement ce cycle :
+
+```text
+Connexion au PostgreSQL Railway
+              ↓
+alembic upgrade head
+              ↓
+Streamlit sur le port Railway
+```
+
+Il ne lance jamais automatiquement :
+
+- `02_schema.sql` ;
+- `03_reference_data.sql` ;
+- `04_indexes.sql` ;
+- `generate_sample_data.py`.
+
+L'initialisation SQL n'est exécutée que lorsque
+`INITIALIZE_DATABASE=true`, valeur utilisée par Docker Compose local pour une
+base neuve. Sur Railway, conservez toujours cette variable à `false` après la
+restauration du backup.
+
+### Restaurer la base avant le premier déploiement
+
+1. Créez le service PostgreSQL dans Railway.
+2. Utilisez les paramètres du **TCP Proxy** Railway pour restaurer le backup
+   avec pgAdmin ou `pg_restore`.
+3. Vérifiez que le schéma et la table `alembic_version` sont présents.
+4. Configurez `DATABASE_URL=${{Postgres.DATABASE_URL}}` sur le service web.
+5. Déployez ou redéployez l'application.
+
+Une base Railway totalement vide ne peut pas recevoir directement les migrations
+Alembic actuelles, car celles-ci prolongent le schéma initial. Il faut donc soit
+restaurer le backup, soit effectuer une initialisation contrôlée avant le premier
+démarrage.
+
+### Santé du service
+
+Dans les paramètres Railway, utilisez le chemin de healthcheck Streamlit :
+
+```text
+/_stcore/health
+```
+
+Le conteneur écoute sur `0.0.0.0` et sur la valeur de `PORT` fournie par
+Railway.
+
 ## Installation sans Docker
 
 Cette méthode reste disponible pour les contributeurs qui souhaitent exécuter

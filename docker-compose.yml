@@ -38,6 +38,7 @@ services:
       DB_NAME: ${DB_NAME:-sales_predictions}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      INITIALIZE_DATABASE: ${INITIALIZE_DATABASE:-true}
     ports:
       - "${STREAMLIT_PORT:-8501}:8501"
 
