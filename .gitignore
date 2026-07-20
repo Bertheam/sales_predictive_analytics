@@ -4,3 +4,6 @@ venv/
 **pycache**/
 *.pyc
 .DS_Store
+*.backup
+*.dump
+backups/
