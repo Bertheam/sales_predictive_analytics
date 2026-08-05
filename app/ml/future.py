@@ -3,7 +3,8 @@ import math
 import pandas as pd
 
 from app.ml.baseline import forecast_lag_7, forecast_moving_average_7
-from app.ml.models import FEATURE_COLUMNS, build_regressors
+from app.ml.models import FEATURE_COLUMNS, build_regressors, build_xgboost_quantile
+from app.ml.time_series import forecast_ets, forecast_tsb, prepare_demand_series
 
 
 def _monthly_median(dataset: pd.DataFrame, column: str, month: int) -> float:
@@ -34,6 +35,7 @@ def generate_iterative_forecast(
     residual_std: float,
     selling_price: float,
     confidence_z: float = 1.96,
+    residual_quantiles: dict | None = None,
 ) -> dict:
     if horizon < 1 or horizon > 7:
         raise ValueError("L'horizon doit être compris entre 1 et 7 jours.")
@@ -50,7 +52,23 @@ def generate_iterative_forecast(
         )
 
     fitted_model = None
-    if model_name not in {"lag_7", "moving_average_7"}:
+    quantile_models = {}
+    time_series_values = None
+    time_series_history = prepare_demand_series(
+        usable_data["quantity_sold"], stockout
+    )
+    if model_name == "xgboost":
+        for label, alpha in (("p50", 0.50), ("p80", 0.80), ("p90", 0.90)):
+            quantile_models[label] = build_xgboost_quantile(alpha)
+            quantile_models[label].fit(
+                training_data[FEATURE_COLUMNS].astype(float),
+                training_data["quantity_sold"].astype(float),
+            )
+    elif model_name == "ets":
+        time_series_values = forecast_ets(time_series_history, horizon)
+    elif model_name == "croston_tsb":
+        time_series_values = forecast_tsb(time_series_history, horizon)
+    elif model_name not in {"lag_7", "moving_average_7"}:
         fitted_model = build_regressors()[model_name]
         fitted_model.fit(
             training_data[FEATURE_COLUMNS].astype(float),
@@ -102,6 +120,7 @@ def generate_iterative_forecast(
             "stockout_flag": int(simulated_stock <= 0),
         }
 
+        direct_quantiles = None
         if model_name == "lag_7":
             prediction = forecast_lag_7(pd.Series(quantities), 1)[0]
         elif model_name == "moving_average_7":
@@ -109,18 +128,44 @@ def generate_iterative_forecast(
                 pd.Series(quantities),
                 1,
             )[0]
+        elif model_name in {"ets", "croston_tsb"}:
+            prediction = float(time_series_values[step - 1])
+        elif model_name == "xgboost":
+            feature_frame = pd.DataFrame([features])[FEATURE_COLUMNS]
+            direct_quantiles = {
+                label: max(
+                    0.0,
+                    float(model.predict(feature_frame.astype(float))[0]),
+                )
+                for label, model in quantile_models.items()
+            }
+            ordered = sorted(direct_quantiles.values())
+            p50, p80, p90 = ordered
+            prediction = p50
         else:
             feature_frame = pd.DataFrame([features])[FEATURE_COLUMNS]
-            prediction = float(
-                fitted_model.predict(feature_frame.astype(float))[0]
-            )
+            prediction = float(fitted_model.predict(feature_frame.astype(float))[0])
 
         prediction = max(0.0, prediction)
+        if direct_quantiles is None:
+            p50 = prediction
+            p80_shift = (
+                float(residual_quantiles.get("p80", 0.0))
+                if residual_quantiles
+                else 0.8416 * residual_std
+            )
+            p90_shift = (
+                float(residual_quantiles.get("p90", 0.0))
+                if residual_quantiles
+                else 1.2816 * residual_std
+            )
+            p80 = max(p50, prediction + p80_shift)
+            p90 = max(p80, prediction + p90_shift)
         margin = confidence_z * residual_std * math.sqrt(step)
         lower_bound = max(0.0, prediction - margin)
-        upper_bound = max(prediction, prediction + margin)
+        upper_bound = max(p90, prediction + margin)
 
-        stock_need = max(0.0, upper_bound - simulated_stock)
+        stock_need = max(0.0, p90 - simulated_stock)
         stock_after_replenishment = simulated_stock + stock_need
         projected_closing_stock = max(
             0.0,
@@ -131,6 +176,9 @@ def generate_iterative_forecast(
             {
                 "date": forecast_date,
                 "predicted_quantity": prediction,
+                "predicted_p50": p50,
+                "predicted_p80": p80,
+                "predicted_p90": p90,
                 "lower_bound": lower_bound,
                 "upper_bound": upper_bound,
                 "stock_available": simulated_stock,

@@ -1,0 +1,44 @@
+{% extends "base_app.html" %}
+{% load listing_tags %}
+{% block title %}Produits · NexaStock{% endblock %}
+{% block content %}
+{% url 'operations:product-create' as product_create_url %}
+{% if can_manage %}{% include "components/page_header.html" with eyebrow="Catalogue" title="Produits" subtitle="Prix, conditionnements et seuils de stock de" subtitle_suffix=active_company.name action_href=product_create_url action_label="Ajouter un produit" action_icon="+" only %}{% else %}{% include "components/page_header.html" with eyebrow="Catalogue" title="Produits" subtitle="Prix, conditionnements et seuils de stock de" subtitle_suffix=active_company.name only %}{% endif %}
+
+<section class="mini-metric-grid">
+  <article><small>Produits</small><strong>{{ summary.total }}</strong></article>
+  <article><small>Actifs</small><strong>{{ summary.active }}</strong></article>
+  <article><small>À surveiller</small><strong>{{ summary.low_stock }}</strong></article>
+  <article><small>Valeur du stock</small><strong>{{ summary.value|floatformat:"0g" }} <em>FCFA</em></strong></article>
+</section>
+
+<section class="panel data-panel">
+  <form method="get" class="filter-bar flex flex-col gap-3 lg:flex-row lg:items-end">
+    <div class="filter-field filter-field--search"><label for="product-search">Recherche</label><span class="search-field"><span>⌕</span><input id="product-search" name="q" value="{{ filters.q }}" placeholder="Produit, code ou marque"></span></div>
+    <div class="filter-field"><label for="product-category">Catégorie</label><select id="product-category" name="category"><option value="">Toutes les catégories</option>{% for category in categories %}<option value="{{ category.id }}"{% if filters.category == category.id|stringformat:"s" %} selected{% endif %}>{{ category.name }}</option>{% endfor %}</select></div>
+    <div class="filter-field"><label for="product-status">Statut</label><select id="product-status" name="status"><option value="active"{% if filters.status == 'active' %} selected{% endif %}>Produits actifs</option><option value="inactive"{% if filters.status == 'inactive' %} selected{% endif %}>Produits inactifs</option><option value="archived"{% if filters.status == 'archived' %} selected{% endif %}>Produits archivés</option><option value="all"{% if filters.status == 'all' %} selected{% endif %}>Tous les statuts</option></select></div>
+    {% include "components/button.html" with type="submit" label="Filtrer" variant="dark" extra_classes="filter-submit" only %}
+  </form>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr>{% sortable_header "Produit" "product" sort_state %}{% sortable_header "Catégorie" "category" sort_state %}{% sortable_header "Conditionnement" "package" sort_state %}{% sortable_header "Stock" "stock" sort_state %}{% sortable_header "Prix de vente" "price" sort_state %}{% sortable_header "Statut" "status" sort_state %}<th><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for product in products %}
+          <tr>
+            <td><div class="entity-cell"><span class="entity-icon">{{ product.name|first|upper }}</span><div><strong>{{ product.name }}</strong><small>{{ product.code }}{% if product.brand %} · {{ product.brand }}{% endif %}</small></div></div></td>
+            <td>{{ product.category_name }}</td>
+            <td>{{ product.package_type|title }} · {{ product.units_per_package }} unités</td>
+            <td>{% if product.closing_stock is not None %}<strong>{{ product.closing_stock|floatformat:"0g" }}</strong> colis{% else %}<span class="muted">Non renseigné</span>{% endif %}</td>
+            <td>{{ product.selling_price|floatformat:"0g" }} FCFA</td>
+            <td>{% if product.deleted_at %}<span class="status-badge neutral">Archivé</span>{% elif product.is_active %}<span class="status-badge success">Actif</span>{% else %}<span class="status-badge warning">Inactif</span>{% endif %}</td>
+            <td>{% if can_manage %}<div class="row-actions">
+              {% if not product.deleted_at %}{% url 'operations:product-edit' product.id as edit_url %}{% include "components/icon_button.html" with href=edit_url label="Modifier le produit" icon="✎" only %}{% endif %}
+              <form method="post" action="{% url 'operations:product-archive' product.id %}" data-confirm-form data-confirm-title="{% if product.deleted_at %}Restaurer ce produit ?{% else %}Archiver ce produit ?{% endif %}" data-confirm-text="{% if product.deleted_at %}Le produit redeviendra disponible dans les opérations.{% else %}Son historique sera conservé et il ne sera plus proposé dans les nouvelles opérations.{% endif %}">{% csrf_token %}<input type="hidden" name="action" value="{% if product.deleted_at %}restore{% else %}archive{% endif %}">{% include "components/icon_button.html" with type="submit" label=product.deleted_at|yesno:"Restaurer le produit,Archiver le produit" icon=product.deleted_at|yesno:"↺,⌫" variant=product.deleted_at|yesno:"restore,danger" only %}</form>
+            </div>{% endif %}</td>
+          </tr>
+        {% empty %}<tr><td colspan="7">{% include "components/empty_state.html" with icon="⌕" title="Aucun produit" description="Aucun produit ne correspond à ces filtres." only %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>{% pagination page_obj pagination_state %}
+</section>
+{% endblock %}

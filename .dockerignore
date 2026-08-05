@@ -24,4 +24,6 @@ __pycache__/
 *.dump
 *.backup
 backups/
-
+backend/db.sqlite3
+staticfiles/
+node_modules/

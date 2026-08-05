@@ -133,6 +133,9 @@ class ForecastRepository:
                     predicted_quantity,
                     lower_bound,
                     upper_bound,
+                    predicted_p50,
+                    predicted_p80,
+                    predicted_p90,
                     predicted_revenue,
                     recommended_stock
                 ) VALUES (
@@ -141,6 +144,9 @@ class ForecastRepository:
                     :predicted_quantity,
                     :lower_bound,
                     :upper_bound,
+                    :predicted_p50,
+                    :predicted_p80,
+                    :predicted_p90,
                     :predicted_revenue,
                     :recommended_stock
                 )
@@ -154,6 +160,9 @@ class ForecastRepository:
                         "predicted_quantity": float(row["predicted_quantity"]),
                         "lower_bound": float(row["lower_bound"]),
                         "upper_bound": float(row["upper_bound"]),
+                        "predicted_p50": float(row.get("predicted_p50", row["predicted_quantity"])),
+                        "predicted_p80": float(row.get("predicted_p80", row["upper_bound"])),
+                        "predicted_p90": float(row.get("predicted_p90", row["upper_bound"])),
                         "predicted_revenue": float(row["predicted_revenue"]),
                         "recommended_stock": float(row["stock_need"]),
                     },
@@ -179,6 +188,9 @@ class ForecastRepository:
                     fr.predicted_quantity,
                     fr.lower_bound,
                     fr.upper_bound,
+                    fr.predicted_p50,
+                    fr.predicted_p80,
+                    fr.predicted_p90,
                     fr.predicted_revenue,
                     fr.recommended_stock,
                     fre.actual_quantity,

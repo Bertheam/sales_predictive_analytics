@@ -1,0 +1,20 @@
+{% extends "base_public.html" %}
+{% block title %}Créer un compte · NexaStock{% endblock %}
+{% block content %}
+  <span class="eyebrow">Démarrage rapide</span>
+  <h2>Créez votre espace.</h2>
+  <p class="lead">Quelques informations suffisent. Votre dépôt sera configuré à l’étape suivante.</p>
+  <form method="post" class="stack-form compact-form">
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="field-group{% if field.field.widget.input_type == 'checkbox' %} checkbox-group{% endif %}">
+        {% if field.field.widget.input_type == 'checkbox' %}{{ field }}<label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {% else %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% endif %}
+        {% if field.help_text %}<small class="help-text">{{ field.help_text|safe }}</small>{% endif %}
+        {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+      </div>
+    {% endfor %}
+    <button class="primary-button" type="submit">Continuer <span>→</span></button>
+  </form>
+  <p class="auth-alt">Vous avez déjà un compte ? <a href="{% url 'accounts:login' %}">Se connecter</a></p>
+{% endblock %}

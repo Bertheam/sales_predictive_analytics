@@ -1,0 +1,39 @@
+{% extends "base_app.html" %}
+{% block title %}Vue d’ensemble · NexaStock{% endblock %}
+{% block content %}
+  <section class="page-heading">
+    <div><span class="eyebrow">Aujourd’hui</span><h1>Bonjour {{ request.user.full_name|default:request.user.email|truncatewords:1 }}.</h1>
+      <p>Voici le point de situation de <strong>{{ active_company.name }}</strong>.</p></div>
+    <div class="date-chip">
+      {% if snapshot.min_date %}{{ snapshot.min_date|date:"d/m/Y" }} → {{ snapshot.max_date|date:"d/m/Y" }}{% else %}Données du dépôt{% endif %}
+      · {{ active_company.currency }}
+    </div>
+  </section>
+  <section class="welcome-banner">
+    <div><span class="pill">NOUVEL ESPACE</span><h2>Votre centre de pilotage est prêt.</h2>
+      <p>Commencez par importer vos produits, votre stock et vos ventes. Les indicateurs et prévisions seront ensuite calculés pour ce dépôt uniquement.</p>
+      <div class="button-row"><a class="primary-button inline-button" href="{% url 'operations:products' %}">Gérer mes produits</a><a class="text-button" href="{{ streamlit_url }}" target="_blank" rel="noopener">Explorer le laboratoire ↗</a></div>
+    </div><div class="forecast-orbit"><span>J+7</span><i></i><b>Prévision</b></div>
+  </section>
+  <section class="metric-grid" aria-label="Indicateurs principaux">
+    <article class="metric-card"><span class="metric-icon green">↗</span><small>Chiffre d’affaires historique</small><strong>{% if snapshot.sales_count %}{{ snapshot.revenue|floatformat:"0g" }}{% else %}—{% endif %}</strong><p>{{ snapshot.sales_count }} vente{{ snapshot.sales_count|pluralize }}</p></article>
+    <article class="metric-card"><span class="metric-icon blue">▦</span><small>Stock disponible</small><strong>{% if snapshot.active_products %}{{ snapshot.current_stock|floatformat:"0g" }}{% else %}—{% endif %}</strong><p>{{ snapshot.active_products }} produit{{ snapshot.active_products|pluralize }} actif{{ snapshot.active_products|pluralize }}</p></article>
+    <article class="metric-card"><span class="metric-icon amber">!</span><small>Produits à risque</small><strong>{% if snapshot.ready %}{{ snapshot.risk_products }}{% else %}—{% endif %}</strong><p>Rupture ou seuil minimum atteint</p></article>
+    <article class="metric-card accent"><span class="metric-icon violet">◈</span><small>Quantité vendue</small><strong>{% if snapshot.sales_count %}{{ snapshot.quantity_sold|floatformat:"0g" }}{% else %}—{% endif %}</strong><p>Colis sur la période disponible</p></article>
+  </section>
+  <section class="dashboard-grid" id="demarrage">
+    <article class="panel setup-panel"><div class="panel-heading"><div><span class="eyebrow">Premiers pas</span><h2>Configurez votre dépôt</h2></div><span class="progress-label">0 / 3</span></div>
+      <div class="progress-track"><i></i></div>
+      <ol class="setup-list">
+        <li><span>1</span><div><strong>Importer le catalogue produits</strong><p>Références, catégories, prix de vente et seuils.</p></div><b>→</b></li>
+        <li><span>2</span><div><strong>Renseigner le stock initial</strong><p>Quantités disponibles pour démarrer sans approximation.</p></div><b>→</b></li>
+        <li><span>3</span><div><strong>Importer l’historique des ventes</strong><p>La matière première de vos analyses prédictives.</p></div><b>→</b></li>
+      </ol>
+    </article>
+    <article class="panel insight-panel"><span class="eyebrow light">Intelligence prédictive</span><h2>Anticipez au lieu de subir.</h2>
+      <p>NexaStock compare plusieurs approches, mesure leur qualité et retient le modèle le plus fiable pour chaque produit.</p>
+      <div class="insight-stats"><div><strong>J+1 → J+7</strong><span>Horizon opérationnel</span></div><div><strong>MAE · RMSE</strong><span>Qualité surveillée</span></div></div>
+      <a href="{% url 'decisions:center' %}">Voir les priorités de réapprovisionnement <span>→</span></a>
+    </article>
+  </section>
+{% endblock %}

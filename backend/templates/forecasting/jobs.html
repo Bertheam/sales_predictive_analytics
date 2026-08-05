@@ -1,0 +1,81 @@
+{% extends "base_app.html" %}
+{% block title %}Prévisions de ventes · NexaStock{% endblock %}
+{% block content %}
+  {% url 'forecasting:jobs' as jobs_url %}
+
+  <section class="relative mb-6 overflow-hidden rounded-[28px] bg-[radial-gradient(circle_at_85%_15%,rgba(72,213,158,.27),transparent_27%),linear-gradient(135deg,#102a22,#071813)] px-6 py-8 text-white shadow-[0_24px_60px_rgba(13,45,35,.18)] sm:px-9 sm:py-10 lg:px-11">
+    <div class="pointer-events-none absolute -right-10 -top-16 size-52 rounded-full border border-white/10 shadow-[0_0_0_34px_rgba(255,255,255,.025),0_0_0_68px_rgba(255,255,255,.018)]" aria-hidden="true"></div>
+    <div class="relative z-[1] max-w-3xl">
+      <span class="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.18em] text-emerald-200"><span class="size-1.5 animate-pulse rounded-full bg-emerald-300 motion-reduce:animate-none"></span> Assistant prévisionnel</span>
+      <h1 class="mt-5 max-w-2xl text-3xl font-black leading-tight tracking-[-.04em] sm:text-4xl lg:text-[46px]">Préparez vos stocks avant que la demande ne vous surprenne.</h1>
+      <p class="mt-4 max-w-2xl text-sm leading-7 text-emerald-50/70 sm:text-base">Choisissez un produit. NexaStock compare les méthodes, conserve automatiquement la plus fiable et prépare les besoins des 7 prochains jours.</p>
+      {% if can_generate %}<a href="#nouvelle-prevision" class="forecast-hero-cta mt-7 inline-flex min-h-12 items-center gap-3 rounded-xl bg-white px-5 text-sm font-extrabold shadow-lg shadow-black/10 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-white motion-reduce:transform-none"><span aria-hidden="true">✦</span> Préparer une prévision</a>{% endif %}
+    </div>
+  </section>
+
+  {% if freshness.last_sale_date %}
+    <div class="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border p-4 {% if freshness_is_stale %}border-amber-200 bg-amber-50 text-amber-950{% else %}border-emerald-200 bg-emerald-50 text-emerald-950{% endif %}">
+      <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-white font-black shadow-sm" aria-hidden="true">{% if freshness_is_stale %}!{% else %}✓{% endif %}</span>
+      <div class="min-w-0 flex-1"><strong class="text-sm">{% if freshness_is_stale %}Mettez les ventes à jour{% else %}Vos données sont prêtes{% endif %}</strong><p class="mt-0.5 text-xs opacity-70">Dernière vente : {{ freshness.last_sale_date|date:"d/m/Y" }} · mise à jour il y a {{ freshness.age_days }} jour{{ freshness.age_days|pluralize }}.</p></div>
+      {% if freshness_is_stale %}<a class="text-xs font-extrabold underline decoration-amber-400 underline-offset-4" href="{% url 'operations:sales' %}">Voir les ventes</a>{% endif %}
+    </div>
+  {% else %}
+    <div class="mb-6 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950"><span class="grid size-9 place-items-center rounded-xl bg-white font-black">!</span><div><strong class="text-sm">Commencez par vos ventes</strong><p class="mt-0.5 text-xs opacity-70">Ajoutez un historique avant de préparer une prévision.</p></div></div>
+  {% endif %}
+
+  <section class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <article class="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-950/5 motion-reduce:transform-none"><span class="text-xs font-bold text-slate-500">Produits optimisés</span><strong class="mt-2 block text-3xl font-black tracking-tight text-slate-900">{{ champions|length }}</strong><p class="mt-1 text-xs text-slate-400">avec une méthode validée</p></article>
+    <article class="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-950/5 motion-reduce:transform-none"><span class="text-xs font-bold text-slate-500">Méthodes stables</span><strong class="mt-2 block text-3xl font-black tracking-tight text-slate-900">{{ stable_models }}</strong><p class="mt-1 text-xs text-slate-400">confirmées au dernier contrôle</p></article>
+    <article class="group rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50 p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-950/5 motion-reduce:transform-none"><span class="text-xs font-bold text-emerald-700">Protection automatique</span><strong class="mt-2 block text-3xl font-black tracking-tight text-emerald-950">{{ replacement_threshold|floatformat:0 }} %</strong><p class="mt-1 text-xs text-emerald-700/60">gain minimum avant changement</p></article>
+  </section>
+
+  <section class="mb-6 grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,.7fr)]">
+    <article class="rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+      <div class="mb-5 flex items-end justify-between gap-4"><div><span class="eyebrow">Méthodes recommandées</span><h2 class="mt-2 text-xl font-black tracking-tight text-slate-900">Ce qui fonctionne le mieux</h2></div><span class="hidden rounded-lg bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-500 sm:block">Mise à jour automatique</span></div>
+      {% if champions %}
+        <div class="grid gap-3 md:grid-cols-2">
+          {% for champion in champions %}
+            <article class="group relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/60 p-4 transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-lg hover:shadow-emerald-950/5 motion-reduce:transform-none">
+              <div class="flex items-start gap-3"><span class="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-100 font-black text-emerald-700 transition duration-300 group-hover:rotate-3 group-hover:scale-105 motion-reduce:transform-none" aria-hidden="true">✦</span><div class="min-w-0 flex-1"><h3 class="truncate text-sm font-extrabold text-slate-900">{{ champion.product_name }}</h3><p class="mt-1 text-xs text-slate-500">Méthode recommandée</p><strong class="mt-1 block text-sm text-emerald-700">{{ champion.model_label }}</strong></div></div>
+              <div class="mt-4 flex items-center justify-between gap-2 border-t border-slate-200/70 pt-3"><span class="rounded-full px-2.5 py-1 text-[10px] font-extrabold {% if champion.last_decision == 'REPLACED' %}bg-blue-100 text-blue-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">{{ champion.get_last_decision_display }}</span><span class="text-[10px] text-slate-400">{{ champion.last_evaluated_at|date:"d/m/Y" }}</span></div>
+              <p class="mt-3 text-xs leading-5 text-slate-500">{{ champion.decision_reason }}</p>
+              <details class="group/details mt-3"><summary class="cursor-pointer list-none text-[11px] font-extrabold text-slate-600 transition hover:text-emerald-700">Voir les détails techniques <span class="inline-block transition group-open/details:rotate-180">⌄</span></summary><div class="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-white p-3 text-[11px] text-slate-500"><span>Erreur moyenne <strong class="block text-slate-800">{{ champion.mae|floatformat:2 }}</strong></span><span>Erreur pondérée <strong class="block text-slate-800">{{ champion.wape|floatformat:1 }} %</strong></span>{% if champion.challenger_label %}<span class="col-span-2 border-t border-slate-100 pt-2">Alternative suivie : <strong class="text-slate-700">{{ champion.challenger_label }}</strong></span>{% endif %}</div></details>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        {% include "components/empty_state.html" with icon="✦" title="Votre assistant apprend avec vous" description="Lancez une première prévision : la méthode la plus fiable sera mémorisée pour chaque produit." only %}
+      {% endif %}
+    </article>
+
+    <article id="nouvelle-prevision" class="scroll-mt-24 rounded-[24px] border border-emerald-200 bg-gradient-to-br from-white via-white to-emerald-50 p-5 shadow-sm sm:p-7">
+      <span class="eyebrow">Nouvelle prévision</span><h2 class="mt-2 text-xl font-black tracking-tight text-slate-900">Quel produit souhaitez-vous anticiper ?</h2><p class="mt-2 text-sm leading-6 text-slate-500">Vous choisissez le produit, NexaStock s’occupe du reste.</p>
+      {% if can_generate %}
+        {% if form.fields.product_id.choices %}
+          <form method="post" class="mt-6 grid gap-5" data-submit-lock>{% csrf_token %}
+            <div class="form-field"><label class="mb-2 block text-xs font-extrabold text-slate-700" for="{{ form.product_id.id_for_label }}">{{ form.product_id.label }}</label>{{ form.product_id }}{% for error in form.product_id.errors %}<small class="field-error">{{ error }}</small>{% endfor %}<small class="mt-2 block text-[11px] leading-5 text-slate-400">La méthode la plus fiable sera appliquée automatiquement.</small></div>
+            <div class="hidden">{{ form.horizon }}</div>
+            <button class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 text-sm font-extrabold text-white shadow-lg shadow-emerald-800/15 transition duration-300 hover:-translate-y-0.5 hover:bg-emerald-800 hover:shadow-xl disabled:cursor-wait disabled:opacity-60 motion-reduce:transform-none" type="submit"><span aria-hidden="true">✦</span> Préparer les 7 prochains jours</button>
+          </form>
+        {% else %}{% include "components/empty_state.html" with icon="◉" title="Aucun produit disponible" description="Ajoutez un produit actif avant de préparer une prévision." only %}{% endif %}
+      {% else %}<div class="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Votre accès permet de consulter les résultats uniquement.</div>{% endif %}
+      <div class="mt-6 flex items-start gap-3 rounded-xl border border-emerald-100 bg-white/70 p-3"><span class="text-emerald-600" aria-hidden="true">✓</span><p class="text-[11px] leading-5 text-slate-500"><strong class="text-slate-700">Aucun réglage complexe.</strong> NexaStock teste les méthodes en arrière-plan et n’en change que si le gain est réellement utile.</p></div>
+    </article>
+  </section>
+
+  <section class="rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+    <div class="flex flex-wrap items-end justify-between gap-3"><div><span class="eyebrow">Activité récente</span><h2 class="mt-2 text-xl font-black tracking-tight text-slate-900">Vos dernières prévisions</h2></div><a class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-extrabold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700" href="{{ jobs_url }}">↻ Actualiser</a></div>
+    {% if jobs %}
+      <div class="mt-5 grid gap-3">
+        {% for job in jobs %}
+          <article class="flex flex-col gap-4 rounded-2xl border border-slate-200 p-4 transition duration-300 hover:border-emerald-200 hover:shadow-md sm:flex-row sm:items-center">
+            <div class="flex min-w-0 flex-1 items-center gap-3"><span class="grid size-10 shrink-0 place-items-center rounded-xl {% if job.status == 'SUCCESS' %}bg-emerald-100 text-emerald-700{% elif job.status == 'FAILED' %}bg-red-100 text-red-700{% else %}bg-amber-100 text-amber-700{% endif %}" aria-hidden="true">{% if job.status == 'SUCCESS' %}✓{% elif job.status == 'FAILED' %}!{% else %}◌{% endif %}</span><div class="min-w-0"><strong class="block truncate text-sm text-slate-900">{{ job.product_name }}</strong><span class="mt-1 block text-[11px] text-slate-400">Demandée le {{ job.requested_at|date:"d/m/Y à H:i" }}</span></div></div>
+            <div class="sm:text-right"><span class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-extrabold {% if job.status == 'SUCCESS' %}bg-emerald-100 text-emerald-700{% elif job.status == 'FAILED' %}bg-red-100 text-red-700{% else %}bg-amber-100 text-amber-700{% endif %}">{{ job.get_status_display }}</span>{% if job.model_name %}<p class="mt-1 text-xs font-bold text-slate-600">{{ job.model_name }}</p>{% endif %}</div>
+            {% if job.status == 'SUCCESS' %}<details class="group sm:w-56"><summary class="cursor-pointer list-none text-xs font-extrabold text-emerald-700">Comprendre le choix <span class="inline-block transition group-open:rotate-180">⌄</span></summary><p class="mt-2 text-[11px] leading-5 text-slate-500">{{ job.result.decision_reason|default:"La méthode la plus fiable a été utilisée." }}</p></details>{% elif job.status == 'FAILED' and can_generate %}<form method="post" action="{% url 'forecasting:retry' job.id %}" data-confirm-form data-confirm-title="Relancer cette prévision ?" data-confirm-text="La fraîcheur des données sera contrôlée avant la remise en file.">{% csrf_token %}<button class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-extrabold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700" type="submit">↻ Relancer</button></form>{% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}{% include "components/empty_state.html" with icon="✦" title="Aucune prévision pour le moment" description="Votre première prévision apparaîtra ici dès qu’elle sera prête." only %}{% endif %}
+  </section>
+  {% if has_active_jobs %}<div data-auto-refresh-url="{{ jobs_url }}" data-auto-refresh-delay="8000" hidden></div>{% endif %}
+{% endblock %}

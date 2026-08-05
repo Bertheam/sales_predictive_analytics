@@ -37,15 +37,19 @@ class FutureForecastService:
         product_id: str,
         horizon: int = 7,
         test_days: int = 60,
+        *,
+        evaluation: dict | None = None,
+        selected_model: str | None = None,
     ) -> dict:
         started_at = perf_counter()
         product = self.product_repository.get_by_id(product_id)
-        evaluation = self.forecast_service.evaluate_product(
-            product_id,
-            test_days,
+        evaluation = evaluation or self.forecast_service.evaluate_product(
+            product_id, test_days
         )
         dataset = evaluation["dataset"]
-        best_model = evaluation["best_model"]
+        best_model = selected_model or evaluation["best_model"]
+        if best_model not in evaluation["models"]:
+            raise ValueError("Le modèle sélectionné n’est pas disponible pour ce produit.")
         best_metrics = evaluation["models"][best_model]
 
         test_data = evaluation["test_data"]
@@ -63,6 +67,10 @@ class FutureForecastService:
         residual_std = float(residuals.std(ddof=1))
         if residual_std <= 0 or residuals.empty:
             residual_std = float(best_metrics["rmse"])
+        residual_quantiles = {
+            "p80": max(0.0, float(residuals.quantile(0.80))) if not residuals.empty else 0.0,
+            "p90": max(0.0, float(residuals.quantile(0.90))) if not residuals.empty else 0.0,
+        }
 
         future = generate_iterative_forecast(
             dataset=dataset,
@@ -71,6 +79,7 @@ class FutureForecastService:
             residual_std=residual_std,
             selling_price=product["selling_price"],
             confidence_z=self.CONFIDENCE_Z,
+            residual_quantiles=residual_quantiles,
         )
         duration_seconds = perf_counter() - started_at
 
@@ -92,6 +101,13 @@ class FutureForecastService:
                 "iterative_lags": True,
                 "stockout_policy": "exclude_from_training_and_metrics",
                 "stock_feature": "opening_stock",
+                "quantiles": [0.50, 0.80, 0.90],
+                "quantile_method": (
+                    "xgboost_quantile"
+                    if best_model == "xgboost"
+                    else "residual_distribution"
+                ),
+                "residual_quantiles": residual_quantiles,
             },
             duration_seconds=duration_seconds,
             forecast_data=future["forecast"],

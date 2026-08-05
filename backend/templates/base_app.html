@@ -1,0 +1,79 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}NexaStock{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/operations.css' %}">
+  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+  <script defer src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js"></script>
+  <script defer src="{% static 'js/app.js' %}"></script>
+</head>
+<body class="app-body">
+  <div class="app-shell min-h-dvh">
+    <aside class="sidebar hidden md:flex">
+      <a class="brand" href="{% url 'dashboard:home' %}"><span class="brand-mark">N</span><span>NexaStock</span></a>
+      <nav class="main-nav" aria-label="Navigation principale">
+        <span class="nav-section">Pilotage</span>
+        <a class="nav-link{% if request.resolver_match.namespace == 'dashboard' %} active{% endif %}" href="{% url 'dashboard:home' %}"><span>◫</span> Vue d’ensemble</a>
+        <a class="nav-link{% if request.resolver_match.url_name == 'sales' or request.resolver_match.url_name == 'sale-detail' or request.resolver_match.url_name == 'sale-create' or request.resolver_match.url_name == 'sale-edit' %} active{% endif %}" href="{% url 'operations:sales' %}"><span>↗</span> Ventes</a>
+        <a class="nav-link{% if request.resolver_match.url_name == 'stocks' or request.resolver_match.url_name == 'receipt-create' or request.resolver_match.url_name == 'receipt-edit' %} active{% endif %}" href="{% url 'operations:stocks' %}"><span>▦</span> Stocks</a>
+        <a class="nav-link{% if request.resolver_match.namespace == 'decisions' %} active{% endif %}" href="{% url 'decisions:center' %}"><span>◎</span> Réapprovisionnement</a>
+        <a class="nav-link{% if request.resolver_match.namespace == 'forecasting' %} active{% endif %}" href="{% url 'forecasting:jobs' %}"><span>◈</span> Prévisions</a>
+        <span class="nav-section">Gestion</span>
+        <a class="nav-link{% if request.resolver_match.url_name == 'products' or request.resolver_match.url_name == 'product-create' or request.resolver_match.url_name == 'product-edit' %} active{% endif %}" href="{% url 'operations:products' %}"><span>◉</span> Produits</a>
+        <a class="nav-link{% if 'customer' in request.resolver_match.url_name %} active{% endif %}" href="{% url 'operations:customers' %}"><span>♙</span> Clients</a>
+        <a class="nav-link{% if 'supplier' in request.resolver_match.url_name %} active{% endif %}" href="{% url 'operations:suppliers' %}"><span>↙</span> Fournisseurs</a>
+        {% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a class="nav-link{% if request.resolver_match.url_name == 'movement-create' %} active{% endif %}" href="{% url 'operations:movement-create' %}"><span>⇄</span> Mouvements</a>{% endif %}
+        {% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a class="nav-link{% if request.resolver_match.namespace == 'companies' and request.resolver_match.url_name != 'select' %} active{% endif %}" href="{% url 'companies:team' %}"><span>♙</span> Équipe</a>{% else %}<span class="nav-link locked"><span>♙</span> Équipe</span>{% endif %}
+        {% if request.user.is_superuser %}<span class="nav-section">Plateforme</span><a class="nav-link{% if request.resolver_match.namespace == 'audit' %} active{% endif %}" href="{% url 'audit:logs' %}"><span>◎</span> Journal d’audit</a>{% endif %}
+      </nav>
+      <div class="sidebar-lab">
+        <span class="lab-dot"></span>
+        <strong>Laboratoire expert</strong>
+        <p>Explorez les modèles et métriques avancées.</p>
+        <a href="{{ streamlit_url }}" target="_blank" rel="noopener">Ouvrir Streamlit ↗</a>
+      </div>
+    </aside>
+    <main class="workspace min-w-0">
+      <header class="topbar">
+        <a class="brand mobile-app-brand" href="{% url 'dashboard:home' %}"><span class="brand-mark text-base">N</span><span>NexaStock</span></a>
+        <div class="company-switcher mr-auto">
+          {% include "components/company_picker.html" %}
+        </div>
+        <details class="user-dropdown">
+          <summary class="user-menu">
+            <span class="user-avatar">{{ request.user.full_name|default:request.user.email|first|upper }}</span>
+            <div><strong>{{ request.user.full_name|default:request.user.email }}</strong><small>{{ active_membership.get_role_display }}</small></div>
+            <span class="dropdown-chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div class="user-dropdown__menu">
+            <div class="user-dropdown__identity"><strong>{{ request.user.full_name|default:request.user.email }}</strong><small>{{ request.user.email }}</small></div>
+            <a href="{% url 'accounts:profile' %}"><span>♙</span> Mon profil</a>
+            {% if request.user.is_superuser %}<a href="{% url 'audit:logs' %}"><span>◎</span> Journal d’audit</a>{% endif %}
+            <form method="post" action="{% url 'accounts:logout' %}" data-confirm-form data-confirm-title="Se déconnecter ?" data-confirm-text="Vous devrez vous reconnecter pour accéder au dépôt.">
+              {% csrf_token %}<button type="submit"><span>↪</span> Se déconnecter</button>
+            </form>
+          </div>
+        </details>
+      </header>
+      <div class="content-area min-w-0">
+        {% if messages %}<div id="flash-messages" hidden>{% for message in messages %}<span data-level="{{ message.tags|default:'info' }}" data-message="{{ message }}"></span>{% endfor %}</div><noscript>{% for message in messages %}<div class="notice {{ message.tags }}">{{ message }}</div>{% endfor %}</noscript>{% endif %}
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+  <nav class="mobile-nav grid md:hidden" aria-label="Navigation mobile">
+    <a href="{% url 'dashboard:home' %}"{% if request.resolver_match.namespace == 'dashboard' %} class="active"{% endif %}><span>◫</span>Accueil</a>
+    <a href="{% url 'operations:sales' %}"{% if request.resolver_match.url_name == 'sales' or request.resolver_match.url_name == 'sale-detail' %} class="active"{% endif %}><span>↗</span>Ventes</a>
+    <a href="{% url 'operations:stocks' %}"{% if request.resolver_match.url_name == 'stocks' %} class="active"{% endif %}><span>▦</span>Stocks</a>
+    <a href="{% url 'forecasting:jobs' %}"{% if request.resolver_match.namespace == 'forecasting' %} class="active"{% endif %}><span>◈</span>Prévisions</a>
+    <details class="mobile-more{% if request.resolver_match.namespace == 'operations' and request.resolver_match.url_name != 'sales' and request.resolver_match.url_name != 'stocks' or request.resolver_match.url_name == 'team' or request.resolver_match.namespace == 'decisions' %} active{% endif %}"><summary><span>◉</span>Gestion</summary><div><a href="{% url 'decisions:center' %}"><span>◎</span>Réapprovisionnement</a><a href="{% url 'operations:products' %}"><span>◉</span>Produits</a><a href="{% url 'operations:customers' %}"><span>♙</span>Clients</a><a href="{% url 'operations:suppliers' %}"><span>↙</span>Fournisseurs</a>{% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a href="{% url 'companies:team' %}"><span>♙</span>Équipe</a>{% endif %}</div></details>
+  </nav>
+</body>
+</html>

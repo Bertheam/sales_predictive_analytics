@@ -1,0 +1,6 @@
+{% extends "base_app.html" %}
+{% block title %}Modifier {{ company.name }} · NexaStock{% endblock %}
+{% block content %}
+{% url 'companies:list' as list_url %}{% include "components/page_header.html" with back_href=list_url back_label="Retour aux dépôts" eyebrow="Paramètres" title="Modifier le dépôt" subtitle="Mettez à jour les informations visibles de cet espace." only %}
+<form method="post" class="panel business-form">{% csrf_token %}<section class="form-section"><div><span class="step-badge">DÉPÔT</span><h2>Informations générales</h2><p>Le code technique reste inchangé pour protéger les intégrations et l’historique.</p></div><div class="form-grid">{% for field in form %}<div class="field-group {% if field.name == 'name' or field.name == 'timezone' %}span-2{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}</div></section><div class="form-actions">{% include "components/button.html" with href=list_url label="Annuler" variant="ghost" only %}{% include "components/button.html" with type="submit" label="Enregistrer les modifications" only %}</div></form>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Pilotage intelligent des ventes et des stocks pour les dépôts de boissons.">
+  <title>{% block title %}NexaStock{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="public-body">
+  <main class="auth-layout">
+    <section class="auth-story">
+      <a class="brand brand-light" href="/" aria-label="NexaStock, accueil">
+        <span class="brand-mark">N</span><span>NexaStock</span>
+      </a>
+      <div class="story-content">
+        <span class="eyebrow light">Le copilote de votre dépôt</span>
+        <h1>Décidez aujourd’hui avec une longueur d’avance.</h1>
+        <p>Ventes, stock et prévisions réunis dans une expérience simple, conçue pour les dépôts de boissons.</p>
+        <div class="story-proof">
+          <div><strong>7 jours</strong><span>de demande anticipée</span></div>
+          <div><strong>24/7</strong><span>de visibilité métier</span></div>
+        </div>
+      </div>
+      <p class="story-footer">Pilotage prédictif · Données sécurisées · Multi-dépôts</p>
+    </section>
+    <section class="auth-panel">
+      <div class="auth-card">
+        <a class="brand brand-mobile" href="/"><span class="brand-mark">N</span><span>NexaStock</span></a>
+        {% if messages %}
+          {% for message in messages %}<div class="notice {{ message.tags }}">{{ message }}</div>{% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+      </div>
+    </section>
+  </main>
+</body>
+</html>

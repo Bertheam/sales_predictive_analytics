@@ -1,5 +1,6 @@
 from uuid import UUID
 
+import numpy as np
 import pandas as pd
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,7 @@ from app.ml.models import (
     PREDICTION_COLUMNS,
     build_regressors,
 )
+from app.ml.time_series import classify_demand, forecast_ets, forecast_tsb, prepare_demand_series
 
 
 def evaluate_baselines(
@@ -116,6 +118,34 @@ def compare_models(
         ),
     }
 
+    demand_profile = classify_demand(clean_train["quantity_sold"])
+    historical_demand = prepare_demand_series(
+        train_data["quantity_sold"], train_stockout
+    )
+
+    if not demand_profile["is_intermittent"] and len(historical_demand) >= 28:
+        try:
+            test_data[PREDICTION_COLUMNS["ets"]] = forecast_ets(
+                historical_demand, len(test_data)
+            )
+            metrics["ets"] = calculate_metrics(
+                evaluation_data["quantity_sold"],
+                test_data.loc[evaluation_data.index, PREDICTION_COLUMNS["ets"]],
+            )
+        except (ValueError, np.linalg.LinAlgError):
+            pass
+
+    if demand_profile["is_intermittent"]:
+        test_data[PREDICTION_COLUMNS["croston_tsb"]] = forecast_tsb(
+            historical_demand, len(test_data)
+        )
+        metrics["croston_tsb"] = calculate_metrics(
+            evaluation_data["quantity_sold"],
+            test_data.loc[
+                evaluation_data.index, PREDICTION_COLUMNS["croston_tsb"]
+            ],
+        )
+
     x_train = clean_train[FEATURE_COLUMNS].astype(float)
     y_train = clean_train["quantity_sold"].astype(float)
     x_test = test_data[FEATURE_COLUMNS].astype(float)
@@ -158,6 +188,7 @@ def compare_models(
         "test_rows": len(evaluation_data),
         "excluded_train_stockouts": int(train_stockout.sum()),
         "excluded_test_stockouts": int(test_stockout.sum()),
+        "demand_profile": demand_profile,
     }
 
 

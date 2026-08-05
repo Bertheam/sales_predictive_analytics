@@ -1,0 +1,17 @@
+{% extends "base_public.html" %}
+{% block title %}Choisir un dépôt · NexaStock{% endblock %}
+{% block content %}
+  <span class="eyebrow">Votre organisation</span>
+  <h2>Quel dépôt souhaitez-vous ouvrir ?</h2>
+  <p class="lead">Vos droits et les données affichées dépendent du dépôt sélectionné.</p>
+  <div class="company-list">
+    {% for membership in memberships %}
+      <form method="post">{% csrf_token %}<input type="hidden" name="company_id" value="{{ membership.company_id }}">
+        <button class="company-choice" type="submit"><span class="company-avatar">{{ membership.company.name|first|upper }}</span>
+          <span><strong>{{ membership.company.name }}</strong><small>{{ membership.get_role_display }}{% if membership.company.city %} · {{ membership.company.city }}{% endif %}</small></span><b>→</b>
+        </button>
+      </form>
+    {% empty %}<div class="empty-state">Vous n’avez encore accès à aucun dépôt.</div>{% endfor %}
+  </div>
+  <a class="secondary-button" href="{% url 'companies:onboarding' %}">+ Créer un autre dépôt</a>
+{% endblock %}

@@ -33,6 +33,8 @@ MODEL_LABELS = {
     "linear_regression": "Régression linéaire",
     "random_forest": "Random Forest",
     "xgboost": "XGBoost",
+    "ets": "Holt-Winters (ETS)",
+    "croston_tsb": "Croston TSB",
 }
 
 PREDICTION_COLUMNS = {
@@ -41,7 +43,31 @@ PREDICTION_COLUMNS = {
     "linear_regression": "prediction_linear_regression",
     "random_forest": "prediction_random_forest",
     "xgboost": "prediction_xgboost",
+    "ets": "prediction_ets",
+    "croston_tsb": "prediction_croston_tsb",
 }
+
+
+def build_xgboost_quantile(alpha: float, random_state: int = 42):
+    return Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="median")),
+            (
+                "model",
+                XGBRegressor(
+                    objective="reg:quantileerror",
+                    quantile_alpha=alpha,
+                    n_estimators=300,
+                    max_depth=5,
+                    learning_rate=0.05,
+                    subsample=0.8,
+                    colsample_bytree=0.8,
+                    random_state=random_state,
+                    n_jobs=1,
+                ),
+            ),
+        ]
+    )
 
 
 def build_regressors(random_state: int = 42) -> dict:
@@ -62,7 +88,7 @@ def build_regressors(random_state: int = 42) -> dict:
                         n_estimators=300,
                         min_samples_leaf=2,
                         random_state=random_state,
-                        n_jobs=-1,
+                        n_jobs=1,
                     ),
                 ),
             ]

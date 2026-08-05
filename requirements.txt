@@ -5,8 +5,16 @@ openpyxl
 numpy
 plotly
 scikit-learn
+statsmodels>=0.14,<0.15
 xgboost
 SQLAlchemy
 python-dotenv
 psycopg[binary]
 Faker
+Django>=5.2,<5.3
+djangorestframework>=3.16,<3.17
+dj-database-url>=3.0,<4
+argon2-cffi>=25.1,<26
+gunicorn>=23,<24
+whitenoise>=6.9,<7
+celery[redis]>=5.5,<6

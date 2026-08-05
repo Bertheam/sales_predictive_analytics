@@ -10,6 +10,7 @@ Variables d'environnement possibles:
     DB_NAME=sales_predictions
     DB_USER=postgres
     DB_PASSWORD=postgres
+    STREAMLIT_COMPANY_ID=00000000-0000-4000-8000-000000000001
 
 Le script:
 - crée 100 clients
@@ -49,6 +50,10 @@ DB_CONFIG = {
     "user": os.getenv("DB_USER", "postgres"),
     "password": os.getenv("DB_PASSWORD", "postgres"),
 }
+COMPANY_ID = os.getenv(
+    "STREAMLIT_COMPANY_ID",
+    "00000000-0000-4000-8000-000000000001",
+)
 
 END_DATE = date.today() - timedelta(days=1)
 START_DATE = END_DATE - timedelta(days=730)
@@ -137,8 +142,8 @@ def is_approx_tabaski(d: date) -> bool:
     return any(start <= d <= end for start, end in periods)
 
 
-def fetch_dicts(cur, query):
-    cur.execute(query)
+def fetch_dicts(cur, query, params=None):
+    cur.execute(query, params)
     cols = [d.name for d in cur.description]
     return [dict(zip(cols, row)) for row in cur.fetchall()]
 
@@ -147,36 +152,62 @@ def main():
     with psycopg.connect(**DB_CONFIG) as conn:
         with conn.cursor() as cur:
             print("Connexion PostgreSQL OK.")
+            cur.execute(
+                "SELECT set_config('app.current_company_id', %s, TRUE)",
+                (COMPANY_ID,),
+            )
+            cur.execute(
+                "SELECT name FROM companies WHERE id = %s AND status = 'ACTIVE'",
+                (COMPANY_ID,),
+            )
+            company = cur.fetchone()
+            if not company:
+                raise RuntimeError(
+                    "Le dépôt STREAMLIT_COMPANY_ID est introuvable ou inactif."
+                )
+            print(f"Dépôt cible : {company[0]} ({COMPANY_ID}).")
 
-            # Nettoyage des données synthétiques transactionnelles.
-            cur.execute("""
-                TRUNCATE TABLE
-                    anomalies,
-                    forecast_results,
-                    forecasts,
-                    model_runs,
-                    daily_stocks,
-                    stock_movements,
-                    purchase_receipt_items,
-                    purchase_receipts,
-                    sale_items,
-                    sales,
-                    import_batches,
-                    calendar_features,
-                    customers
-                RESTART IDENTITY CASCADE;
-            """)
+            # Nettoyage limité au dépôt cible. Ne jamais utiliser TRUNCATE ici :
+            # il ignorerait la frontière entre les entreprises.
+            for table in (
+                "anomalies",
+                "forecast_result_evaluations",
+                "forecast_evaluations",
+                "forecast_results",
+                "forecasts",
+                "model_performance_reviews",
+                "model_runs",
+                "daily_stocks",
+                "stock_movements",
+                "purchase_receipt_items",
+                "purchase_receipts",
+                "sale_items",
+                "sales",
+                "import_batch_errors",
+                "import_batches",
+                "customers",
+            ):
+                cur.execute(
+                    f"DELETE FROM {table} WHERE company_id = %s",
+                    (COMPANY_ID,),
+                )
 
             # Récupération référentiels.
-            customer_types = fetch_dicts(cur, "SELECT id, code FROM customer_types ORDER BY code")
+            customer_types = fetch_dicts(cur, """
+                SELECT id, code FROM customer_types
+                WHERE company_id = %s ORDER BY code
+            """, (COMPANY_ID,))
             products = fetch_dicts(cur, """
                 SELECT id, code, name, category_id, units_per_package, purchase_price,
                        selling_price, minimum_stock, reorder_quantity
                 FROM products
-                WHERE is_active = TRUE
+                WHERE company_id = %s AND is_active = TRUE
                 ORDER BY code
-            """)
-            suppliers = fetch_dicts(cur, "SELECT id, code FROM suppliers WHERE is_active = TRUE ORDER BY code")
+            """, (COMPANY_ID,))
+            suppliers = fetch_dicts(cur, """
+                SELECT id, code FROM suppliers
+                WHERE company_id = %s AND is_active = TRUE ORDER BY code
+            """, (COMPANY_ID,))
 
             # -----------------------------
             # Clients
@@ -237,6 +268,20 @@ def main():
                      is_weekend, is_public_holiday, is_ramadan_period, is_tabaski_period,
                      is_end_of_month, is_start_of_month, temperature_average, rainfall, special_event)
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (calendar_date) DO UPDATE SET
+                        day_of_week = EXCLUDED.day_of_week,
+                        week_number = EXCLUDED.week_number,
+                        month_number = EXCLUDED.month_number,
+                        quarter_number = EXCLUDED.quarter_number,
+                        is_weekend = EXCLUDED.is_weekend,
+                        is_public_holiday = EXCLUDED.is_public_holiday,
+                        is_ramadan_period = EXCLUDED.is_ramadan_period,
+                        is_tabaski_period = EXCLUDED.is_tabaski_period,
+                        is_end_of_month = EXCLUDED.is_end_of_month,
+                        is_start_of_month = EXCLUDED.is_start_of_month,
+                        temperature_average = EXCLUDED.temperature_average,
+                        rainfall = EXCLUDED.rainfall,
+                        special_event = EXCLUDED.special_event
                 """, (
                     d, d.isoweekday(), d.isocalendar().week, d.month, ((d.month - 1) // 3) + 1,
                     weekend, False, ramadan, tabaski,
@@ -562,10 +607,11 @@ def main():
             cur.execute("""
                 SELECT ds.stock_date, ds.product_id, ds.closing_stock, ds.minimum_stock
                 FROM daily_stocks ds
-                WHERE ds.closing_stock <= ds.minimum_stock * 0.25
+                WHERE ds.company_id = %s
+                  AND ds.closing_stock <= ds.minimum_stock * 0.25
                 ORDER BY ds.stock_date
                 LIMIT 70
-            """)
+            """, (COMPANY_ID,))
             for stock_date, product_id, closing_stock, minimum_stock in cur.fetchall():
                 severity = "CRITICAL" if float(closing_stock) <= 0 else "HIGH"
                 cur.execute("""
@@ -585,7 +631,10 @@ def main():
                 anomaly_seq += 1
 
             # Mise à jour batch import.
-            cur.execute("SELECT COUNT(*) FROM sale_items")
+            cur.execute(
+                "SELECT COUNT(*) FROM sale_items WHERE company_id = %s",
+                (COMPANY_ID,),
+            )
             sale_item_count = cur.fetchone()[0]
             cur.execute("""
                 UPDATE import_batches
@@ -602,7 +651,13 @@ def main():
                 "purchase_receipts", "purchase_receipt_items",
                 "stock_movements", "daily_stocks", "anomalies"
             ]:
-                cur.execute(f"SELECT COUNT(*) FROM {table}")
+                if table == "calendar_features":
+                    cur.execute("SELECT COUNT(*) FROM calendar_features")
+                else:
+                    cur.execute(
+                        f"SELECT COUNT(*) FROM {table} WHERE company_id = %s",
+                        (COMPANY_ID,),
+                    )
                 counts[table] = cur.fetchone()[0]
 
             print("\nGénération terminée.")

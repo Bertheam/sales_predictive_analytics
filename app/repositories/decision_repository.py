@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 class DecisionRepository:
     def __init__(self, db: Session):
         self.db = db
+        self.company_id = str(db.info["company_id"])
 
     def get_latest_product_forecasts(self) -> list[dict]:
         query = text("""
@@ -16,7 +17,8 @@ class DecisionRepository:
                         ORDER BY f.created_at DESC, f.id DESC
                     ) AS row_number
                 FROM forecasts f
-                WHERE f.status IN ('ACTIVE', 'EVALUATED', 'COMPLETED')
+                WHERE f.company_id = :company_id
+                  AND f.status IN ('ACTIVE', 'EVALUATED', 'COMPLETED')
                   AND f.forecast_level = 'PRODUCT'
             ),
             latest_forecasts AS (
@@ -28,6 +30,9 @@ class DecisionRepository:
                 SELECT
                     fr.forecast_id,
                     SUM(fr.predicted_quantity) AS predicted_quantity,
+                    SUM(fr.predicted_p50) AS predicted_p50,
+                    SUM(fr.predicted_p80) AS predicted_p80,
+                    SUM(fr.predicted_p90) AS predicted_p90,
                     SUM(fr.lower_bound) AS lower_quantity,
                     SUM(fr.upper_bound) AS upper_quantity,
                     SQRT(
@@ -44,6 +49,7 @@ class DecisionRepository:
                     SUM(fr.predicted_revenue) AS predicted_revenue,
                     SUM(fr.recommended_stock) AS persisted_stock_need
                 FROM forecast_results fr
+                WHERE fr.company_id = :company_id
                 GROUP BY fr.forecast_id
             )
             SELECT
@@ -59,6 +65,12 @@ class DecisionRepository:
                 lf.created_at AS forecast_created_at,
                 mr.model_name,
                 COALESCE(ft.predicted_quantity, 0) AS predicted_quantity,
+                COALESCE(NULLIF(ft.predicted_p50, 0), ft.predicted_quantity, 0)
+                    AS predicted_p50,
+                COALESCE(NULLIF(ft.predicted_p80, 0), ft.upper_quantity,
+                    ft.predicted_quantity, 0) AS predicted_p80,
+                COALESCE(NULLIF(ft.predicted_p90, 0), ft.upper_quantity,
+                    ft.predicted_quantity, 0) AS predicted_p90,
                 COALESCE(ft.lower_quantity, 0) AS lower_quantity,
                 COALESCE(ft.upper_quantity, 0) AS upper_quantity,
                 COALESCE(ft.confidence_safety_stock, 0)
@@ -67,15 +79,22 @@ class DecisionRepository:
                 COALESCE(ft.persisted_stock_need, 0) AS persisted_stock_need,
                 COALESCE(stock.closing_stock, 0) AS current_stock,
                 COALESCE(history.quantity_sold, 0) AS historical_quantity_7d
+                ,COALESCE(p.minimum_stock, 0) AS minimum_stock
+                ,COALESCE(p.reorder_quantity, 0) AS default_reorder_quantity
             FROM latest_forecasts lf
             JOIN products p ON p.id = lf.product_id
-            JOIN product_categories pc ON pc.id = p.category_id
+                AND p.company_id = :company_id
+                AND p.is_active = TRUE
+                AND p.deleted_at IS NULL
+            JOIN product_categories pc ON pc.id = p.category_id AND pc.company_id = :company_id
             LEFT JOIN model_runs mr ON mr.id = lf.model_run_id
+                AND mr.company_id = :company_id
             LEFT JOIN forecast_totals ft ON ft.forecast_id = lf.id
             LEFT JOIN LATERAL (
                 SELECT ds.closing_stock
                 FROM daily_stocks ds
                 WHERE ds.product_id = p.id
+                  AND ds.company_id = :company_id
                 ORDER BY ds.stock_date DESC
                 LIMIT 1
             ) stock ON TRUE
@@ -84,14 +103,28 @@ class DecisionRepository:
                 FROM sale_items si
                 JOIN sales s ON s.id = si.sale_id
                 WHERE si.product_id = p.id
+                  AND si.company_id = :company_id
+                  AND s.company_id = :company_id
                   AND s.sale_date BETWEEN
-                      (SELECT MAX(sale_date) FROM sales) - 6
-                      AND (SELECT MAX(sale_date) FROM sales)
+                      (SELECT MAX(sale_date) FROM sales WHERE company_id = :company_id) - 6
+                      AND (SELECT MAX(sale_date) FROM sales WHERE company_id = :company_id)
             ) history ON TRUE
             ORDER BY p.name
         """)
 
-        return [dict(row) for row in self.db.execute(query).mappings()]
+        return [dict(row) for row in self.db.execute(
+            query, {"company_id": self.company_id}
+        ).mappings()]
+
+    def get_active_suppliers(self) -> list[dict]:
+        rows = self.db.execute(text("""
+            SELECT id, code, name, city
+            FROM suppliers
+            WHERE company_id = :company_id
+              AND is_active = TRUE AND deleted_at IS NULL
+            ORDER BY name
+        """), {"company_id": self.company_id}).mappings()
+        return [dict(row) for row in rows]
 
     def get_anomalies(self) -> list[dict]:
         query = text("""
@@ -106,17 +139,27 @@ class DecisionRepository:
                 COALESCE(p.name, 'Global') AS product_name,
                 COALESCE(pc.name, 'Toutes catégories') AS category_name
             FROM anomalies a
-            LEFT JOIN products p ON p.id = a.product_id
-            LEFT JOIN product_categories pc ON pc.id = p.category_id
+            LEFT JOIN products p ON p.id = a.product_id AND p.company_id = :company_id
+            LEFT JOIN product_categories pc ON pc.id = p.category_id AND pc.company_id = :company_id
+            WHERE a.company_id = :company_id
             ORDER BY a.anomaly_date DESC
         """)
 
-        return [dict(row) for row in self.db.execute(query).mappings()]
+        return [dict(row) for row in self.db.execute(
+            query, {"company_id": self.company_id}
+        ).mappings()]
 
     def get_active_product_count(self) -> int:
         return int(
             self.db.execute(
-                text("SELECT COUNT(*) FROM products WHERE is_active = TRUE")
+                text("""
+                    SELECT COUNT(*)
+                    FROM products
+                    WHERE company_id = :company_id
+                      AND is_active = TRUE
+                      AND deleted_at IS NULL
+                """),
+                {"company_id": self.company_id},
             ).scalar_one()
         )
 
@@ -125,8 +168,10 @@ class DecisionRepository:
             text("""
                 SELECT DISTINCT product_id
                 FROM forecasts
-                WHERE status IN ('ACTIVE', 'EVALUATED', 'COMPLETED')
+                WHERE company_id = :company_id
+                  AND status IN ('ACTIVE', 'EVALUATED', 'COMPLETED')
                   AND forecast_level = 'PRODUCT'
-            """)
+            """),
+            {"company_id": self.company_id},
         )
         return {str(row.product_id) for row in rows}

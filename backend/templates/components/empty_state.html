@@ -1,0 +1,5 @@
+<div class="empty-state">
+  {% if icon %}<span class="empty-state__icon" aria-hidden="true">{{ icon }}</span>{% endif %}
+  <strong>{{ title|default:"Aucun résultat" }}</strong>
+  {% if description %}<p>{{ description }}</p>{% endif %}
+</div>

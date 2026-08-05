@@ -1,0 +1,18 @@
+{% extends "base_public.html" %}
+{% block title %}Configurer le dépôt · NexaStock{% endblock %}
+{% block content %}
+  <div class="step-line"><span class="done">✓</span><i></i><span class="current">2</span></div>
+  <span class="eyebrow">Étape 2 sur 2</span>
+  <h2>Parlez-nous de votre dépôt.</h2>
+  <p class="lead">Ces informations personnalisent votre espace et vos futurs rapports.</p>
+  <form method="post" class="stack-form compact-form">
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="field-group"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+        {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+      </div>
+    {% endfor %}
+    <button class="primary-button" type="submit">Créer mon espace <span>→</span></button>
+  </form>
+  <p class="privacy-note">🔒 Chaque dépôt dispose d’un espace de données isolé.</p>
+{% endblock %}

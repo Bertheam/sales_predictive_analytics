@@ -1,0 +1,10 @@
+{% extends "base_app.html" %}
+{% block title %}Modifier {{ receipt.receipt_number }} · NexaStock{% endblock %}
+{% block content %}
+{% url 'operations:stocks' as stocks_url %}{% include "components/page_header.html" with back_href=stocks_url back_label="Retour aux stocks" eyebrow="Approvisionnement" title="Modifier la réception" subtitle=receipt.receipt_number only %}
+<form method="post" class="panel business-form">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-section"><div><span class="step-badge">01</span><h2>Informations administratives</h2><p>Les quantités validées ne sont pas réécrites. Pour les corriger, annulez la réception puis saisissez-en une nouvelle.</p></div><div class="form-grid">{% for field in form %}{% include "components/form_field.html" with field=field only %}{% endfor %}</div></div>
+  <div class="form-actions">{% include "components/button.html" with href=stocks_url label="Annuler" variant="ghost" only %}{% include "components/button.html" with type="submit" label="Enregistrer" only %}</div>
+</form>
+{% endblock %}

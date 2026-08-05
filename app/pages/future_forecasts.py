@@ -45,10 +45,17 @@ def render_forecast_chart(result: dict):
     figure.add_trace(
         go.Scatter(
             x=forecast["date"],
-            y=forecast["predicted_quantity"],
-            name="Prévision",
+            y=forecast["predicted_p50"],
+            name="Prévision P50",
             mode="lines+markers",
             line={"color": "#F97316", "width": 3},
+        )
+    )
+    figure.add_trace(
+        go.Scatter(
+            x=forecast["date"], y=forecast["predicted_p90"],
+            name="Scénario prudent P90", mode="lines+markers",
+            line={"color": "#7C3AED", "width": 2, "dash": "dot"},
         )
     )
     figure.update_layout(
@@ -65,6 +72,9 @@ def render_forecast_table(forecast: pd.DataFrame):
         [
             "date",
             "predicted_quantity",
+            "predicted_p50",
+            "predicted_p80",
+            "predicted_p90",
             "lower_bound",
             "upper_bound",
             "stock_available",
@@ -75,6 +85,9 @@ def render_forecast_table(forecast: pd.DataFrame):
         columns={
             "date": "Date",
             "predicted_quantity": "Quantité prévue",
+            "predicted_p50": "P50 central",
+            "predicted_p80": "P80 prudent",
+            "predicted_p90": "P90 sécurité",
             "lower_bound": "Borne basse",
             "upper_bound": "Borne haute",
             "stock_available": "Stock disponible",
@@ -92,6 +105,9 @@ def render_forecast_table(forecast: pd.DataFrame):
         column_config={
             "Date": st.column_config.DateColumn("Date", format="DD/MM/YYYY"),
             "Quantité prévue": number_column("Quantité prévue"),
+            "P50 central": number_column("P50 central"),
+            "P80 prudent": number_column("P80 prudent"),
+            "P90 sécurité": number_column("P90 sécurité"),
             "Borne basse": number_column("Borne basse"),
             "Borne haute": number_column("Borne haute"),
             "Stock disponible": number_column("Stock disponible"),
@@ -252,6 +268,9 @@ def render_saved_forecast_detail(
     data = pd.DataFrame(results)
     numeric_columns = [
         "predicted_quantity",
+        "predicted_p50",
+        "predicted_p80",
+        "predicted_p90",
         "lower_bound",
         "upper_bound",
         "predicted_revenue",
@@ -313,6 +332,9 @@ def render_saved_forecast_detail(
         columns={
             "forecast_date": "Date",
             "predicted_quantity": "Quantité prévue",
+            "predicted_p50": "P50 central",
+            "predicted_p80": "P80 prudent",
+            "predicted_p90": "P90 sécurité",
             "lower_bound": "Borne basse",
             "upper_bound": "Borne haute",
             "actual_quantity": "Quantité réelle",
@@ -326,6 +348,9 @@ def render_saved_forecast_detail(
         column_config={
             "Date": st.column_config.DateColumn(format="DD/MM/YYYY"),
             "Quantité prévue": st.column_config.NumberColumn(format="%.2f"),
+            "P50 central": st.column_config.NumberColumn(format="%.2f"),
+            "P80 prudent": st.column_config.NumberColumn(format="%.2f"),
+            "P90 sécurité": st.column_config.NumberColumn(format="%.2f"),
             "Borne basse": st.column_config.NumberColumn(format="%.2f"),
             "Borne haute": st.column_config.NumberColumn(format="%.2f"),
             "Quantité réelle": st.column_config.NumberColumn(format="%.2f"),
@@ -336,6 +361,9 @@ def render_saved_forecast_detail(
         column_order=[
             "Date",
             "Quantité prévue",
+            "P50 central",
+            "P80 prudent",
+            "P90 sécurité",
             "Borne basse",
             "Borne haute",
             "Quantité réelle",

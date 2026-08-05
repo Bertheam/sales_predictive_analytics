@@ -1,0 +1,10 @@
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="flex flex-col gap-3 border-t border-line px-4 py-4 sm:flex-row sm:items-center sm:justify-between" aria-label="Pagination">
+  <p class="text-xs text-muted">Résultats <strong class="text-ink">{{ page_obj.start_index }}–{{ page_obj.end_index }}</strong> sur <strong class="text-ink">{{ page_obj.paginator.count }}</strong></p>
+  <div class="flex flex-wrap items-center gap-1.5">
+    {% if previous_url %}<a class="pagination-button" href="{{ previous_url }}" aria-label="Page précédente">←</a>{% else %}<span class="pagination-button opacity-40" aria-hidden="true">←</span>{% endif %}
+    {% for item in pages %}{% if item.ellipsis %}<span class="px-1 text-xs text-muted">…</span>{% elif item.current %}<span class="pagination-button is-current" aria-current="page">{{ item.label }}</span>{% else %}<a class="pagination-button" href="{{ item.url }}">{{ item.label }}</a>{% endif %}{% endfor %}
+    {% if next_url %}<a class="pagination-button" href="{{ next_url }}" aria-label="Page suivante">→</a>{% else %}<span class="pagination-button opacity-40" aria-hidden="true">→</span>{% endif %}
+  </div>
+</nav>
+{% elif page_obj.paginator.count %}<div class="border-t border-line px-4 py-3 text-xs text-muted">{{ page_obj.paginator.count }} résultat{{ page_obj.paginator.count|pluralize }}</div>{% endif %}

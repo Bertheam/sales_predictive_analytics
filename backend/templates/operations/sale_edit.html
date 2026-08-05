@@ -1,0 +1,10 @@
+{% extends "base_app.html" %}
+{% block title %}Modifier {{ sale.sale_number }} · NexaStock{% endblock %}
+{% block content %}
+{% url 'operations:sale-detail' sale.id as detail_url %}{% include "components/page_header.html" with back_href=detail_url back_label="Retour à la vente" eyebrow="Correction commerciale" title="Modifier la vente" subtitle="Les produits et quantités sont figés pour préserver la piste de stock. Annulez puis recréez la vente si ces éléments sont incorrects." only %}
+<form method="post" class="panel business-form">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-section"><div><span class="step-badge">01</span><h2>{{ sale.sale_number }}</h2><p>Modifiez uniquement le client, le paiement ou les notes.</p></div><div class="form-grid">{% for field in form %}{% if field.name == 'notes' %}{% include "components/form_field.html" with field=field span_two=True only %}{% else %}{% include "components/form_field.html" with field=field only %}{% endif %}{% endfor %}</div></div>
+  <div class="form-actions">{% include "components/button.html" with href=detail_url label="Annuler" variant="ghost" only %}{% include "components/button.html" with type="submit" label="Enregistrer les modifications" only %}</div>
+</form>
+{% endblock %}

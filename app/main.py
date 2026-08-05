@@ -1,5 +1,8 @@
 import streamlit as st
+from sqlalchemy import text
 
+from app.config.settings import settings
+from app.database.session import SessionLocal
 from app.utils.ui import apply_app_style, render_sidebar_brand
 
 
@@ -11,6 +14,26 @@ st.set_page_config(
 
 apply_app_style()
 render_sidebar_brand()
+
+try:
+    with SessionLocal() as tenant_db:
+        tenant_name = tenant_db.execute(
+            text("SELECT name FROM companies WHERE id = :company_id AND status = 'ACTIVE'"),
+            {"company_id": settings.company_id},
+        ).scalar_one_or_none()
+except Exception as exc:
+    st.error(
+        "Le contexte du dépôt technique n'est pas disponible. "
+        "Vérifiez les migrations et STREAMLIT_COMPANY_ID."
+    )
+    st.exception(exc)
+    st.stop()
+
+if not tenant_name:
+    st.error("Le dépôt configuré pour Streamlit est introuvable ou inactif.")
+    st.stop()
+
+st.sidebar.caption(f"Dépôt analysé : **{tenant_name}**")
 
 
 dashboard_page = st.Page(

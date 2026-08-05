@@ -1,0 +1,9 @@
+<section class="page-heading flex flex-col gap-4 md:flex-row md:items-end md:justify-between{% if action_href or back_href %} action-heading{% endif %}">
+  <div>
+    {% if back_href %}<a class="back-link" href="{{ back_href }}">← {{ back_label|default:"Retour" }}</a>{% endif %}
+    {% if eyebrow %}<span class="eyebrow">{{ eyebrow }}</span>{% endif %}
+    <h1>{{ title }}</h1>
+    {% if subtitle %}<p>{{ subtitle }}{% if subtitle_suffix %} {{ subtitle_suffix }}{% endif %}</p>{% endif %}
+  </div>
+  {% if action_href %}{% include "components/button.html" with href=action_href label=action_label icon=action_icon extra_classes="inline-button" only %}{% endif %}
+</section>

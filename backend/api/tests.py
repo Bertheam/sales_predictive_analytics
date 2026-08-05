@@ -1,0 +1,69 @@
+from django.test import TestCase
+from django.urls import reverse
+
+from accounts.models import User
+from companies.models import Company, Membership
+
+
+class ApiTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="api@example.com", password="A-secure-password-2026", full_name="API User"
+        )
+        self.company = Company.objects.create(code="api-depot", name="Dépôt API")
+        Membership.objects.create(
+            user=self.user, company=self.company, role=Membership.Role.ADMIN, status=Membership.Status.ACTIVE
+        )
+
+    def test_api_rejects_anonymous_requests(self):
+        response = self.client.get(reverse("api:me"))
+        self.assertIn(response.status_code, (401, 403))
+
+    def test_context_returns_only_selected_company_and_role(self):
+        self.client.force_login(self.user)
+        session = self.client.session
+        session["active_company_id"] = str(self.company.pk)
+        session.save()
+        response = self.client.get(reverse("api:context"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["company"]["code"], "api-depot")
+        self.assertEqual(response.json()["role"], Membership.Role.ADMIN)
+
+    def test_companies_returns_user_memberships(self):
+        Company.objects.create(code="other", name="Autre dépôt")
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("api:companies"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]["company"]["code"], "api-depot")
+
+    def test_dashboard_summary_requires_selected_company(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("api:dashboard-summary"))
+        self.assertEqual(response.status_code, 409)
+
+    def test_dashboard_summary_uses_selected_company(self):
+        self.client.force_login(self.user)
+        session = self.client.session
+        session["active_company_id"] = str(self.company.pk)
+        session.save()
+        response = self.client.get(reverse("api:dashboard-summary"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["company_id"], str(self.company.pk))
+
+    def test_operational_api_requires_selected_company(self):
+        self.client.force_login(self.user)
+        for route in ("api:products", "api:stocks", "api:sales"):
+            with self.subTest(route=route):
+                self.assertEqual(self.client.get(reverse(route)).status_code, 409)
+
+    def test_operational_api_is_scoped_to_selected_company(self):
+        self.client.force_login(self.user)
+        session = self.client.session
+        session["active_company_id"] = str(self.company.pk)
+        session.save()
+        for route in ("api:products", "api:stocks", "api:sales"):
+            with self.subTest(route=route):
+                response = self.client.get(reverse(route))
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["company_id"], str(self.company.pk))

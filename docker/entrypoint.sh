@@ -36,7 +36,11 @@ else
     echo "Initialisation SQL désactivée."
 fi
 
-echo "Application des migrations Alembic..."
-python -m alembic upgrade head
+if [ "${RUN_ALEMBIC:-true}" = "true" ]; then
+    echo "Application des migrations Alembic..."
+    python -m alembic upgrade head
+else
+    echo "Migrations Alembic déléguées à la commande du service."
+fi
 
 exec "$@"

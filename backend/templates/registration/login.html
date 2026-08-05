@@ -1,0 +1,20 @@
+{% extends "base_public.html" %}
+{% block title %}Connexion · NexaStock{% endblock %}
+{% block content %}
+  <span class="eyebrow">Espace sécurisé</span>
+  <h2>Heureux de vous revoir.</h2>
+  <p class="lead">Connectez-vous pour retrouver le pilotage de votre dépôt.</p>
+  <form method="post" class="stack-form">
+    {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      <div class="field-group">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+        {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+      </div>
+    {% endfor %}
+    <button class="primary-button" type="submit">Se connecter <span>→</span></button>
+  </form>
+  <p class="auth-alt">Nouveau sur NexaStock ? <a href="{% url 'accounts:register' %}">Créer un compte</a></p>
+{% endblock %}

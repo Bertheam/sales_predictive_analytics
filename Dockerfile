@@ -1,3 +1,13 @@
+FROM node:22-slim AS frontend
+
+WORKDIR /build
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY backend/templates ./backend/templates
+COPY backend/static/src ./backend/static/src
+COPY backend/static/js ./backend/static/js
+RUN npm run css:build
+
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -20,7 +30,10 @@ RUN python -m pip install -r requirements.txt
 RUN useradd --create-home --shell /bin/bash appuser
 
 COPY --chown=appuser:appuser . .
-RUN chmod +x /app/docker/entrypoint.sh
+COPY --from=frontend --chown=appuser:appuser /build/backend/static/css/tailwind.css /app/backend/static/css/tailwind.css
+RUN mkdir -p /app/staticfiles \
+    && chown appuser:appuser /app/staticfiles \
+    && chmod +x /app/docker/entrypoint.sh
 
 USER appuser
 

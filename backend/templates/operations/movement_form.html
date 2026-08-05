@@ -1,0 +1,10 @@
+{% extends "base_app.html" %}
+{% block title %}Nouveau mouvement · NexaStock{% endblock %}
+{% block content %}
+{% url 'operations:stocks' as stocks_url %}{% include "components/page_header.html" with back_href=stocks_url back_label="Retour aux stocks" eyebrow="Correction de stock" title="Nouveau mouvement" subtitle="Utilisez un mouvement compensatoire pour garder une piste de stock complète." only %}
+<form method="post" class="panel business-form">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-section"><div><span class="step-badge">01</span><h2>Détail du mouvement</h2><p>Les sorties supérieures au stock disponible sont automatiquement refusées.</p></div><div class="form-grid">{% for field in form %}{% if field.name == 'reason' %}{% include "components/form_field.html" with field=field span_two=True only %}{% else %}{% include "components/form_field.html" with field=field only %}{% endif %}{% endfor %}</div></div>
+  <div class="form-actions">{% include "components/button.html" with href=stocks_url label="Annuler" variant="ghost" only %}{% include "components/button.html" with type="submit" label="Enregistrer le mouvement" only %}</div>
+</form>
+{% endblock %}

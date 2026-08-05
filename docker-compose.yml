@@ -22,12 +22,12 @@ services:
       retries: 12
       start_period: 10s
 
-  app:
+  web:
     image: sales_predictive_analytics_app:latest
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: app
+    container_name: web
     restart: unless-stopped
     depends_on:
       db:
@@ -39,8 +39,118 @@ services:
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       INITIALIZE_DATABASE: ${INITIALIZE_DATABASE:-true}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-local-development-secret-change-me}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,web}
+      AUDIT_TRUST_X_FORWARDED_FOR: ${AUDIT_TRUST_X_FORWARDED_FOR:-false}
+      DJANGO_EMAIL_BACKEND: ${DJANGO_EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-true}
+      EMAIL_USE_SSL: ${EMAIL_USE_SSL:-false}
+      DEFAULT_FROM_EMAIL: "${DEFAULT_FROM_EMAIL:-NexaStock <noreply@nexastock.local>}"
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      CELERY_AUTOMATION_ENABLED: ${CELERY_AUTOMATION_ENABLED:-false}
+      FORECAST_MAX_DATA_AGE_DAYS: ${FORECAST_MAX_DATA_AGE_DAYS:-3}
+      FORECAST_CHAMPION_MIN_IMPROVEMENT: ${FORECAST_CHAMPION_MIN_IMPROVEMENT:-5}
+      STREAMLIT_PUBLIC_URL: ${STREAMLIT_PUBLIC_URL:-http://localhost:8501}
+      STREAMLIT_COMPANY_ID: ${STREAMLIT_COMPANY_ID:-00000000-0000-4000-8000-000000000001}
+      RUN_ALEMBIC: "false"
+    ports:
+      - "${DJANGO_PORT:-8001}:8000"
+    command: >
+      sh -c "python backend/manage.py migrate --noinput &&
+      python -m alembic upgrade head &&
+      python backend/manage.py collectstatic --noinput &&
+      gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 45s
+
+  app:
+    image: sales_predictive_analytics_app:latest
+    container_name: app
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-sales_predictions}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      INITIALIZE_DATABASE: "false"
+      STREAMLIT_COMPANY_ID: ${STREAMLIT_COMPANY_ID:-00000000-0000-4000-8000-000000000001}
+      STREAMLIT_USE_RUNTIME_ROLE: "true"
     ports:
       - "${STREAMLIT_PORT:-8501}:8501"
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  worker:
+    image: sales_predictive_analytics_app:latest
+    container_name: worker
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment: &worker-environment
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-sales_predictions}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      INITIALIZE_DATABASE: "false"
+      RUN_ALEMBIC: "false"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-local-development-secret-change-me}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+      PYTHONPATH: /app:/app/backend
+      STREAMLIT_USE_RUNTIME_ROLE: "true"
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      CELERY_AUTOMATION_ENABLED: ${CELERY_AUTOMATION_ENABLED:-false}
+      FORECAST_MAX_DATA_AGE_DAYS: ${FORECAST_MAX_DATA_AGE_DAYS:-3}
+      FORECAST_CHAMPION_MIN_IMPROVEMENT: ${FORECAST_CHAMPION_MIN_IMPROVEMENT:-5}
+    command: celery -A config worker --loglevel=INFO --concurrency=${CELERY_WORKER_CONCURRENCY:-2}
+    healthcheck:
+      disable: true
+
+  beat:
+    image: sales_predictive_analytics_app:latest
+    container_name: beat
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment: *worker-environment
+    command: celery -A config beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule
+    healthcheck:
+      disable: true
+
 volumes:
   postgres_data:
+  redis_data:

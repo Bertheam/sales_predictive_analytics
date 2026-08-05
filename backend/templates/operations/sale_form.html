@@ -1,0 +1,11 @@
+{% extends "base_app.html" %}
+{% block title %}Nouvelle vente · NexaStock{% endblock %}
+{% block content %}
+{% url 'operations:sales' as sales_url %}{% include "components/page_header.html" with back_href=sales_url back_label="Retour aux ventes" eyebrow="Encaissement" title="Nouvelle vente" subtitle="La validation diminue immédiatement le stock des produits vendus." only %}
+<form method="post" class="panel business-form">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-section"><div><span class="step-badge">01</span><h2>Informations de vente</h2><p>Client, date et situation du paiement.</p></div><div class="form-grid">{% for field in form %}{% if field.name == 'notes' %}{% include "components/form_field.html" with field=field span_two=True only %}{% else %}{% include "components/form_field.html" with field=field only %}{% endif %}{% endfor %}</div></div>
+  <div class="form-section"><div><span class="step-badge">02</span><h2>Produits vendus</h2><p>Complétez uniquement les lignes nécessaires. Un produit ne peut apparaître qu’une fois.</p></div><div class="line-formset">{{ items.management_form }}{% for item in items %}<div class="line-form"><span class="line-number">{{ forloop.counter|stringformat:"02d" }}</span>{% for field in item %}{% include "components/form_field.html" with field=field only %}{% endfor %}{% if item.non_field_errors %}<div class="field-error line-error">{{ item.non_field_errors }}</div>{% endif %}</div>{% endfor %}</div></div>
+  <div class="form-actions">{% include "components/button.html" with href=sales_url label="Annuler" variant="ghost" only %}{% include "components/button.html" with type="submit" label="Valider la vente" only %}</div>
+</form>
+{% endblock %}

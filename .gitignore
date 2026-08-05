@@ -4,6 +4,9 @@ venv/
 **pycache**/
 *.pyc
 .DS_Store
+backend/db.sqlite3
+staticfiles/
+node_modules/
 *.backup
 *.dump
 backups/

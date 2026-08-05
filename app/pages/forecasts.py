@@ -23,6 +23,14 @@ MAPE_HELP = (
     "ventes réelles et les prévisions. Les jours sans vente réelle sont "
     "exclus du calcul. Plus la valeur est faible, meilleur est le modèle."
 )
+WAPE_HELP = (
+    "Erreur absolue pondérée par le volume total vendu. Elle reste lisible "
+    "quand plusieurs jours ont zéro vente. Plus elle est faible, mieux c’est."
+)
+BIAS_HELP = (
+    "Biais moyen : une valeur positive indique une surestimation et une "
+    "valeur négative une sous-estimation de la demande."
+)
 
 
 def render_ranking(ranking: list[dict]):
@@ -33,11 +41,13 @@ def render_ranking(ranking: list[dict]):
             "mae": "MAE",
             "rmse": "RMSE",
             "mape": "MAPE (%)",
+            "wape": "WAPE (%)",
+            "bias": "Biais",
         }
     )
 
     st.dataframe(
-        ranking_data[["Rang", "Modèle", "MAE", "RMSE", "MAPE (%)"]],
+        ranking_data[["Rang", "Modèle", "MAE", "RMSE", "MAPE (%)", "WAPE (%)", "Biais"]],
         column_config={
             "Rang": st.column_config.NumberColumn("Rang", format="%d"),
             "MAE": st.column_config.NumberColumn(
@@ -55,6 +65,12 @@ def render_ranking(ranking: list[dict]):
                 help=MAPE_HELP,
                 format="%.2f",
             ),
+            "WAPE (%)": st.column_config.NumberColumn(
+                "WAPE (%)", help=WAPE_HELP, format="%.2f"
+            ),
+            "Biais": st.column_config.NumberColumn(
+                "Biais", help=BIAS_HELP, format="%.2f"
+            ),
         },
         hide_index=True,
         width="stretch",
@@ -64,9 +80,9 @@ def render_ranking(ranking: list[dict]):
 def render_backtest_chart(result: dict):
     test_data = result["test_data"]
     prediction_columns = result["prediction_columns"]
-    selected_columns = ["date", "quantity_sold"] + list(
-        prediction_columns.values()
-    )
+    selected_columns = ["date", "quantity_sold"] + [
+        column for column in prediction_columns.values() if column in test_data
+    ]
     column_labels = {
         "quantity_sold": "Ventes réelles",
         **{
@@ -183,6 +199,11 @@ def main():
                 )
 
             st.subheader("Classement automatique")
+            profile = result["demand_profile"]
+            st.caption(
+                f"Profil de demande : {profile['label']} · "
+                f"{profile['zero_ratio']:.0%} de jours sans demande."
+            )
             render_ranking(result["ranking"])
 
             st.subheader("Ventes réelles et prédictions")
