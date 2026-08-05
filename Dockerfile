@@ -15,7 +15,8 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    RUN_ALEMBIC=false
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -37,10 +38,10 @@ RUN mkdir -p /app/staticfiles \
 
 USER appuser
 
-EXPOSE 8501
+EXPOSE 8000 8501
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD python -c "import os, urllib.request; port=os.getenv('PORT', '8501'); urllib.request.urlopen(f'http://localhost:{port}/_stcore/health', timeout=3)" || exit 1
+    CMD python -c "import os, urllib.request; port=os.getenv('PORT', '8000'); path=os.getenv('APP_HEALTHCHECK_PATH', '/health/'); urllib.request.urlopen(f'http://localhost:{port}{path}', timeout=3)" || exit 1
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]
-CMD ["sh", "-c", "python -m streamlit run app/main.py --server.address=0.0.0.0 --server.port=${PORT:-8501}"]
+CMD ["sh", "-c", "python backend/manage.py migrate --noinput && python -m alembic upgrade head && python backend/manage.py collectstatic --noinput && gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"]
