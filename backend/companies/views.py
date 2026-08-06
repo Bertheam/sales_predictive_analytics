@@ -1,5 +1,3 @@
-import logging
-import smtplib
 from uuid import uuid4
 
 from django.contrib import messages
@@ -15,7 +13,6 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
 
 from .forms import CompanyEditForm, CompanyOnboardingForm, InvitationAcceptanceForm, InvitationForm, MemberRoleForm
-from .emails import send_company_invitation_email
 from .models import Company, CompanyInvitation, Membership
 from .permissions import company_roles_required
 from .services import (
@@ -26,15 +23,14 @@ from .services import (
     company_management_accesses_for,
     create_or_refresh_invitation,
     hash_invitation_token,
+    renew_invitation_link,
     set_member_suspended,
     team_overview,
     update_member_role,
 )
+from .tasks import queue_company_invitation_email
 from audit.models import AuditLog
 from audit.services import record_audit
-
-
-logger = logging.getLogger(__name__)
 
 
 def _unique_company_code(name):
@@ -221,23 +217,55 @@ def invite_member(request):
     accept_url = request.build_absolute_uri(
         reverse("companies:invitation-accept", args=[raw_token])
     )
-    try:
-        sent = send_company_invitation_email(
-            invitation=invitation,
-            accept_url=accept_url,
-        )
-    except (OSError, smtplib.SMTPException):
-        logger.exception(
-            "Échec de l’envoi de l’invitation %s à %s.",
-            invitation.id,
-            invitation.email,
-        )
-        sent = 0
-    record_audit(request, action=AuditLog.Action.CREATE, resource_type="company_invitation", resource_id=invitation.id, description=f"Invitation de {invitation.email} comme {invitation.get_role_display()}.", metadata={"email": invitation.email, "role": invitation.role, "email_sent": bool(sent)})
-    if sent:
-        messages.success(request, f"Invitation envoyée à {invitation.email}.")
+    queued = queue_company_invitation_email(
+        invitation=invitation, raw_token=raw_token, accept_url=accept_url
+    )
+    record_audit(request, action=AuditLog.Action.CREATE, resource_type="company_invitation", resource_id=invitation.id, description=f"Invitation de {invitation.email} comme {invitation.get_role_display()}.", metadata={"email": invitation.email, "role": invitation.role, "email_queued": queued})
+    if queued:
+        messages.success(request, f"Invitation créée. L’envoi à {invitation.email} est en cours.")
     else:
-        messages.warning(request, "Invitation créée, mais l’e-mail n’a pas pu être envoyé. Vérifiez la configuration SMTP.")
+        messages.warning(request, "Invitation créée, mais le service d’envoi est indisponible. Vous pourrez renvoyer le lien.")
+    return redirect("companies:team")
+
+
+@company_roles_required(*TEAM_MANAGEMENT_ROLES)
+def resend_invitation(request, invitation_id):
+    if request.method != "POST":
+        raise Http404
+    invitation = get_object_or_404(
+        CompanyInvitation,
+        pk=invitation_id,
+        company=request.company,
+        status=CompanyInvitation.Status.PENDING,
+    )
+    if invitation.role == Membership.Role.ADMIN and not (
+        getattr(request, "is_platform_admin", False)
+        or request.membership.role == Membership.Role.OWNER
+    ):
+        return HttpResponseForbidden("Seul le propriétaire peut renvoyer cette invitation.")
+    try:
+        invitation, raw_token = renew_invitation_link(invitation)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("companies:team")
+    accept_url = request.build_absolute_uri(
+        reverse("companies:invitation-accept", args=[raw_token])
+    )
+    queued = queue_company_invitation_email(
+        invitation=invitation, raw_token=raw_token, accept_url=accept_url
+    )
+    record_audit(
+        request,
+        action=AuditLog.Action.UPDATE,
+        resource_type="company_invitation",
+        resource_id=invitation.id,
+        description=f"Renvoi de l’invitation à {invitation.email}.",
+        metadata={"email": invitation.email, "role": invitation.role, "email_queued": queued},
+    )
+    if queued:
+        messages.success(request, "Un nouveau lien sécurisé a été mis en file d’envoi.")
+    else:
+        messages.warning(request, "Le lien a été renouvelé, mais sa mise en file a échoué. Réessayez plus tard.")
     return redirect("companies:team")
 
 

@@ -162,8 +162,31 @@ def create_or_refresh_invitation(*, company, email, role, invited_by):
             role=role,
             invited_by=invited_by,
             expires_at=timezone.now() + timedelta(days=INVITATION_VALIDITY_DAYS),
+            email_status=CompanyInvitation.EmailStatus.QUEUED,
+            email_queued_at=timezone.now(),
         )
         return invitation, raw_token
+
+
+def renew_invitation_link(invitation):
+    """Invalidate the previous link and return a fresh short-lived token."""
+    with transaction.atomic():
+        invitation = CompanyInvitation.objects.select_for_update().get(pk=invitation.pk)
+        if invitation.status != CompanyInvitation.Status.PENDING:
+            raise ValueError("Cette invitation ne peut plus être renvoyée.")
+        raw_token = token_urlsafe(32)
+        invitation.token_hash = hash_invitation_token(raw_token)
+        invitation.expires_at = timezone.now() + timedelta(days=INVITATION_VALIDITY_DAYS)
+        invitation.email_status = CompanyInvitation.EmailStatus.QUEUED
+        invitation.email_queued_at = timezone.now()
+        invitation.email_sent_at = None
+        invitation.email_failed_at = None
+        invitation.email_error = ""
+        invitation.save(update_fields=[
+            "token_hash", "expires_at", "email_status", "email_queued_at",
+            "email_sent_at", "email_failed_at", "email_error", "updated_at",
+        ])
+    return invitation, raw_token
 
 
 def hash_invitation_token(raw_token):

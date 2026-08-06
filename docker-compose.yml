@@ -48,6 +48,7 @@ services:
       EMAIL_PORT: ${EMAIL_PORT:-587}
       EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_TIMEOUT: ${EMAIL_TIMEOUT:-15}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS:-true}
       EMAIL_USE_SSL: ${EMAIL_USE_SSL:-false}
       DEFAULT_FROM_EMAIL: "${DEFAULT_FROM_EMAIL:-NexaStock <noreply@nexastock.local>}"
@@ -144,6 +145,15 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
       PYTHONPATH: /app:/app/backend
       STREAMLIT_USE_RUNTIME_ROLE: "true"
+      DJANGO_EMAIL_BACKEND: ${DJANGO_EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_TIMEOUT: ${EMAIL_TIMEOUT:-15}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-true}
+      EMAIL_USE_SSL: ${EMAIL_USE_SSL:-false}
+      DEFAULT_FROM_EMAIL: "${DEFAULT_FROM_EMAIL:-NexaStock <noreply@nexastock.local>}"
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
       CELERY_AUTOMATION_ENABLED: ${CELERY_AUTOMATION_ENABLED:-false}

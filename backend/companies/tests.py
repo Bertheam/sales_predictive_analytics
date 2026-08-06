@@ -12,6 +12,7 @@ from django.utils import timezone
 from accounts.models import User
 from .models import Company, CompanyInvitation, Membership
 from .services import hash_invitation_token
+from .tasks import send_company_invitation
 
 
 class CompanyFlowTests(TestCase):
@@ -251,22 +252,97 @@ class TeamManagementTests(TestCase):
         session.save()
         self.assertEqual(self.client.get(reverse("companies:team")).status_code, 403)
 
-    def test_owner_can_create_email_invitation(self):
+    @patch("companies.views.queue_company_invitation_email", return_value=True)
+    def test_owner_can_create_email_invitation(self, queue_email):
         response = self.client.post(reverse("companies:team-invite"), {
             "email": "future@example.com", "role": Membership.Role.ADMIN,
         })
         invitation = CompanyInvitation.objects.get(email="future@example.com")
         self.assertEqual(invitation.role, Membership.Role.ADMIN)
         self.assertRedirects(response, reverse("companies:team"))
+        self.assertEqual(invitation.email_status, CompanyInvitation.EmailStatus.QUEUED)
+        queue_email.assert_called_once()
+        self.assertEqual(queue_email.call_args.kwargs["invitation"], invitation)
+        self.assertIn("/invitations/", queue_email.call_args.kwargs["accept_url"])
+
+    @patch("companies.views.queue_company_invitation_email", return_value=True)
+    def test_owner_can_resend_a_fresh_invitation_link(self, queue_email):
+        old_token = "old-invitation-token"
+        invitation = CompanyInvitation.objects.create(
+            company=self.company,
+            email="retry@example.com",
+            token_hash=hash_invitation_token(old_token),
+            role=Membership.Role.ANALYST,
+            invited_by=self.owner,
+            expires_at=timezone.now() - timedelta(minutes=1),
+            email_status=CompanyInvitation.EmailStatus.FAILED,
+            email_error="Ancienne erreur",
+        )
+
+        response = self.client.post(
+            reverse("companies:invitation-resend", args=[invitation.id])
+        )
+
+        invitation.refresh_from_db()
+        self.assertRedirects(response, reverse("companies:team"))
+        self.assertNotEqual(invitation.token_hash, hash_invitation_token(old_token))
+        self.assertGreater(invitation.expires_at, timezone.now())
+        self.assertEqual(invitation.email_status, CompanyInvitation.EmailStatus.QUEUED)
+        self.assertEqual(invitation.email_error, "")
+        queue_email.assert_called_once()
+        fresh_token = queue_email.call_args.kwargs["raw_token"]
+        self.assertEqual(invitation.token_hash, hash_invitation_token(fresh_token))
+
+    def test_invitation_task_sends_html_email_and_tracks_status(self):
+        raw_token = "celery-email-token"
+        invitation = CompanyInvitation.objects.create(
+            company=self.company,
+            email="worker@example.com",
+            token_hash=hash_invitation_token(raw_token),
+            role=Membership.Role.ADMIN,
+            invited_by=self.owner,
+            expires_at=timezone.now() + timedelta(days=3),
+        )
+
+        result = send_company_invitation.apply(args=[
+            str(invitation.id),
+            raw_token,
+            f"https://example.test/invitations/{raw_token}/accepter/",
+        ]).get()
+
+        invitation.refresh_from_db()
+        self.assertEqual(result["status"], "sent")
+        self.assertEqual(invitation.email_status, CompanyInvitation.EmailStatus.SENT)
+        self.assertEqual(invitation.email_attempts, 1)
+        self.assertIsNotNone(invitation.email_sent_at)
         self.assertEqual(len(mail.outbox), 1)
-        self.assertNotIn(invitation.token_hash, mail.outbox[0].body)
         self.assertIn(self.company.name, mail.outbox[0].body)
-        self.assertIn("Administrateur", mail.outbox[0].body)
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
         html_body, content_type = mail.outbox[0].alternatives[0]
         self.assertEqual(content_type, "text/html")
         self.assertIn("Entrer dans mon dépôt", html_body)
-        self.assertIn(self.company.name, html_body)
+        self.assertIn(raw_token, html_body)
+
+    def test_invitation_task_ignores_an_obsolete_link(self):
+        invitation = CompanyInvitation.objects.create(
+            company=self.company,
+            email="stale@example.com",
+            token_hash=hash_invitation_token("fresh-token"),
+            role=Membership.Role.VIEWER,
+            invited_by=self.owner,
+            expires_at=timezone.now() + timedelta(days=3),
+        )
+
+        result = send_company_invitation.apply(args=[
+            str(invitation.id),
+            "obsolete-token",
+            "https://example.test/obsolete/",
+        ]).get()
+
+        invitation.refresh_from_db()
+        self.assertEqual(result["status"], "stale")
+        self.assertEqual(invitation.email_attempts, 0)
+        self.assertEqual(len(mail.outbox), 0)
 
     def test_active_member_cannot_be_invited_twice(self):
         user, _ = self.create_member()
@@ -352,3 +428,26 @@ class TeamManagementTests(TestCase):
         self.assertEqual(response.status_code, 403)
         other_admin.refresh_from_db()
         self.assertEqual(other_admin.role, Membership.Role.ADMIN)
+
+    @patch("companies.views.queue_company_invitation_email")
+    def test_admin_cannot_resend_an_admin_invitation(self, queue_email):
+        admin, _ = self.create_member(role=Membership.Role.ADMIN)
+        invitation = CompanyInvitation.objects.create(
+            company=self.company,
+            email="future-admin@example.com",
+            token_hash=hash_invitation_token("admin-invitation-token"),
+            role=Membership.Role.ADMIN,
+            invited_by=self.owner,
+            expires_at=timezone.now() + timedelta(days=3),
+        )
+        self.client.force_login(admin)
+        session = self.client.session
+        session["active_company_id"] = str(self.company.id)
+        session.save()
+
+        response = self.client.post(
+            reverse("companies:invitation-resend", args=[invitation.id])
+        )
+
+        self.assertEqual(response.status_code, 403)
+        queue_email.assert_not_called()

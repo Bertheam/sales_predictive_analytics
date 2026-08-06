@@ -78,6 +78,13 @@ class CompanyInvitation(models.Model):
         REVOKED = "REVOKED", "Révoquée"
         EXPIRED = "EXPIRED", "Expirée"
 
+    class EmailStatus(models.TextChoices):
+        UNKNOWN = "UNKNOWN", "Statut non suivi"
+        QUEUED = "QUEUED", "En attente d’envoi"
+        SENDING = "SENDING", "Envoi en cours"
+        SENT = "SENT", "Accepté par Brevo"
+        FAILED = "FAILED", "Échec de l’envoi"
+
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     company = models.ForeignKey(
         Company, on_delete=models.CASCADE, related_name="invitations"
@@ -111,6 +118,15 @@ class CompanyInvitation(models.Model):
     )
     expires_at = models.DateTimeField()
     accepted_at = models.DateTimeField(null=True, blank=True)
+    email_status = models.CharField(
+        max_length=12, choices=EmailStatus.choices, default=EmailStatus.UNKNOWN
+    )
+    email_attempts = models.PositiveSmallIntegerField(default=0)
+    email_queued_at = models.DateTimeField(null=True, blank=True)
+    email_sent_at = models.DateTimeField(null=True, blank=True)
+    email_failed_at = models.DateTimeField(null=True, blank=True)
+    email_error = models.TextField(blank=True)
+    last_email_task_id = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

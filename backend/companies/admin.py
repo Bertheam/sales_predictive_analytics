@@ -19,10 +19,12 @@ class MembershipAdmin(admin.ModelAdmin):
 
 @admin.register(CompanyInvitation)
 class CompanyInvitationAdmin(admin.ModelAdmin):
-    list_display = ("email", "company", "role", "status", "expires_at", "created_at")
-    list_filter = ("role", "status")
+    list_display = ("email", "company", "role", "status", "email_status", "email_attempts", "expires_at", "created_at")
+    list_filter = ("role", "status", "email_status")
     search_fields = ("email", "company__name")
     readonly_fields = (
-        "token_hash", "invited_by", "accepted_by", "accepted_at",
+        "token_hash", "invited_by", "accepted_by", "accepted_at", "email_attempts",
+        "email_queued_at", "email_sent_at", "email_failed_at", "email_error",
+        "last_email_task_id",
         "created_at", "updated_at",
     )
