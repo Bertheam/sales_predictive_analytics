@@ -2,6 +2,7 @@ from unittest.mock import patch
 from uuid import uuid4
 from datetime import date, timedelta
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 from django.test import TestCase
 from django.test import SimpleTestCase, override_settings
@@ -104,6 +105,71 @@ class ForecastJobPageTests(TestCase):
         response = self.client.get(reverse("forecasting:jobs"))
         self.assertContains(response, "Voir les détails techniques")
         self.assertContains(response, "Erreur moyenne")
+
+    @patch("forecasting.forms.product_choices", return_value=[])
+    def test_successful_job_links_to_readable_result(self, _choices):
+        job = ForecastJob.objects.create(
+            company=self.company,
+            product_id=uuid4(),
+            product_name="Cola 50 cl",
+            status=ForecastJob.Status.SUCCESS,
+            forecast_id=uuid4(),
+            model_name="Moyenne mobile 7 jours",
+        )
+        response = self.client.get(reverse("forecasting:jobs"))
+        self.assertContains(response, "Voir le résultat")
+        self.assertContains(response, reverse("forecasting:result", args=[job.id]))
+
+    @patch("forecasting.views.FutureForecastService")
+    @patch("forecasting.views.session_for_company")
+    def test_result_page_exposes_daily_business_values(self, session_factory, service_class):
+        product_id = uuid4()
+        job = ForecastJob.objects.create(
+            company=self.company,
+            product_id=product_id,
+            product_name="Cola 50 cl",
+            status=ForecastJob.Status.SUCCESS,
+            forecast_id=uuid4(),
+            forecast_number="FC-TEST-001",
+            model_name="Régression linéaire",
+            result={"mae": 4.2, "rmse": 5.1, "mape": 12.0, "wape": 10.0, "bias": 0.3},
+        )
+        session_factory.return_value.__enter__.return_value = MagicMock()
+        service_class.return_value.get_forecast_results.return_value = [{
+            "forecast_date": date.today() + timedelta(days=1),
+            "predicted_quantity": 12,
+            "predicted_p50": 12,
+            "predicted_p80": 14,
+            "predicted_p90": 16,
+            "lower_bound": 9,
+            "upper_bound": 17,
+            "predicted_revenue": 102000,
+            "recommended_stock": 7,
+            "actual_quantity": None,
+            "absolute_error": None,
+        }]
+
+        response = self.client.get(reverse("forecasting:result", args=[job.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Demande prévue par jour")
+        self.assertContains(response, "Scénario prudent")
+        self.assertContains(response, "102000")
+        service_class.return_value.get_forecast_results.assert_called_once_with(
+            str(job.forecast_id)
+        )
+
+    def test_result_of_another_company_is_not_accessible(self):
+        foreign_company = Company.objects.create(code="other-forecast", name="Autre dépôt")
+        job = ForecastJob.objects.create(
+            company=foreign_company,
+            product_id=uuid4(),
+            product_name="Produit privé",
+            status=ForecastJob.Status.SUCCESS,
+            forecast_id=uuid4(),
+        )
+        response = self.client.get(reverse("forecasting:result", args=[job.id]))
+        self.assertEqual(response.status_code, 404)
 
     @patch("forecasting.views.generate_product_forecast.delay")
     @patch("forecasting.views.get_product_freshness")

@@ -9,6 +9,8 @@ from audit.models import AuditLog
 from audit.services import record_audit
 from companies.models import Membership
 from companies.permissions import company_required
+from app.database.session import session_for_company
+from app.services.future_forecast_service import FutureForecastService
 
 from .forms import ForecastJobForm
 from .data import get_company_freshness, get_product_freshness
@@ -124,6 +126,63 @@ def forecast_jobs(request):
         "champions": champions,
         "stable_models": stable_models,
         "replacement_threshold": settings.FORECAST_CHAMPION_MIN_IMPROVEMENT,
+    })
+
+
+@company_required
+def forecast_result(request, job_id):
+    """Présente le résultat métier d'une prévision terminée du dépôt actif."""
+    job = get_object_or_404(
+        ForecastJob.objects.select_related("requested_by"),
+        pk=job_id,
+        company=request.company,
+        status=ForecastJob.Status.SUCCESS,
+        forecast_id__isnull=False,
+    )
+    with session_for_company(request.company.id) as db:
+        rows = FutureForecastService(db).get_forecast_results(str(job.forecast_id))
+
+    results = []
+    for row in rows:
+        predicted = float(row["predicted_quantity"] or 0)
+        prudent = float(row["predicted_p90"] or row["upper_bound"] or predicted)
+        results.append({
+            **row,
+            "predicted_quantity": predicted,
+            "predicted_p50": float(row["predicted_p50"] or predicted),
+            "predicted_p80": float(row["predicted_p80"] or predicted),
+            "predicted_p90": prudent,
+            "lower_bound": float(row["lower_bound"] or 0),
+            "upper_bound": float(row["upper_bound"] or prudent),
+            "predicted_revenue": float(row["predicted_revenue"] or 0),
+            "recommended_stock": float(row["recommended_stock"] or 0),
+            "actual_quantity": (
+                float(row["actual_quantity"])
+                if row.get("actual_quantity") is not None
+                else None
+            ),
+        })
+
+    chart_max = max(
+        (max(row["predicted_p90"], row["predicted_quantity"]) for row in results),
+        default=1,
+    ) or 1
+    for row in results:
+        row["predicted_width"] = max(2, row["predicted_quantity"] / chart_max * 100)
+        row["prudent_width"] = max(2, row["predicted_p90"] / chart_max * 100)
+
+    totals = {
+        "quantity": sum(row["predicted_quantity"] for row in results),
+        "prudent": sum(row["predicted_p90"] for row in results),
+        "revenue": sum(row["predicted_revenue"] for row in results),
+        "stock": sum(row["recommended_stock"] for row in results),
+    }
+    return render(request, "forecasting/result.html", {
+        "job": job,
+        "results": results,
+        "totals": totals,
+        "start_date": results[0]["forecast_date"] if results else None,
+        "end_date": results[-1]["forecast_date"] if results else None,
     })
 
 

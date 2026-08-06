@@ -294,6 +294,44 @@ Par défaut, `STREAMLIT_COMPANY_ID=00000000-0000-4000-8000-000000000001` cible
 le **Dépôt historique**. Les données synthétiques ne sont donc pas rattachées
 automatiquement au dernier dépôt créé dans Django.
 
+Pour préparer localement **DEPOT BERTHE KLB** à partir de ce jeu historique et
+prolonger ses ventes jusqu'à la date courante, utilisez plutôt la commande
+idempotente suivante :
+
+```bash
+docker compose exec web \
+  python backend/manage.py seed_recent_berthe_sales --confirm
+```
+
+Si le dépôt Berthe KLB ne possède encore aucune vente, la commande copie le
+socle analytique du **Dépôt historique** sans déplacer ni modifier la source :
+catégories, produits, clients, fournisseurs, ventes, lignes de vente et stocks
+journaliers. Elle ajoute ensuite les jours manquants avec des références
+déterministes. Une seconde exécution ignore les ventes déjà créées.
+
+Pour figer la date de fin lors d'une démonstration :
+
+```bash
+docker compose exec web \
+  python backend/manage.py seed_recent_berthe_sales \
+  --end-date 2026-08-06 --confirm
+```
+
+La commande est bloquée par défaut lorsque `DJANGO_DEBUG=false`. Elle est
+destinée à la préparation d'une base locale avant sauvegarde, pas à
+l'alimentation automatique d'une base de production.
+
+Pour produire un classeur Excel réimportable depuis ces ventes récentes :
+
+```bash
+docker compose exec web python database_setup/scripts/export_recent_sales_excel.py \
+  --company-id <UUID_DU_DEPOT> \
+  --output outputs/ventes_recentes_berthe_klb.xlsx
+```
+
+Le dossier `outputs/` reste local et n'est pas versionné. Le classeur généré
+reprend le modèle officiel d'import NexaStock avec ses listes de choix.
+
 ### 5. Commandes Docker courantes
 
 Démarrer en arrière-plan :
@@ -348,6 +386,10 @@ La page Django **Prévisions** permet à un propriétaire, un administrateur ou
 un analyste de demander un calcul J+1 à J+7. La page peut être actualisée sans
 relancer le job : chaque demande passe successivement par les statuts
 `En attente`, `En cours`, `Terminée` ou `Échec`.
+
+Une prévision terminée propose le bouton **Voir le résultat**. La page de détail
+présente la demande attendue, le scénario prudent P90, le chiffre d'affaires
+prévisionnel, le stock supplémentaire estimé et les valeurs de chaque journée.
 
 Les maintenances périodiques sont volontairement désactivées sur une nouvelle
 installation. Après validation des calculs manuels, activez-les avec :

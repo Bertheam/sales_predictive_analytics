@@ -5,5 +5,6 @@ from . import views
 app_name = "forecasting"
 urlpatterns = [
     path("", views.forecast_jobs, name="jobs"),
+    path("<uuid:job_id>/resultat/", views.forecast_result, name="result"),
     path("<uuid:job_id>/relancer/", views.retry_forecast_job, name="retry"),
 ]

@@ -10,3 +10,4 @@ node_modules/
 *.backup
 *.dump
 backups/
+outputs/
