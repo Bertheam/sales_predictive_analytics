@@ -240,6 +240,8 @@ class TeamManagementTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Équipe du dépôt")
         self.assertContains(response, self.owner.email)
+        self.assertContains(response, "data-submit-lock")
+        self.assertContains(response, 'data-loading-label="Envoi en cours…"')
 
     def test_viewer_cannot_open_team_page(self):
         viewer, membership = self.create_member()

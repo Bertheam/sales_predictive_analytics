@@ -551,6 +551,7 @@ EMAIL_HOST=smtp-relay.brevo.com
 EMAIL_PORT=587
 EMAIL_HOST_USER=<identifiant-smtp-brevo>
 EMAIL_HOST_PASSWORD=<clé-smtp-brevo>
+EMAIL_TIMEOUT=15
 EMAIL_USE_TLS=true
 EMAIL_USE_SSL=false
 DEFAULT_FROM_EMAIL=NexaStock <adresse-verifiee@votre-domaine.com>

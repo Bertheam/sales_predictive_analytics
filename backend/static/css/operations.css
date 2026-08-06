@@ -126,6 +126,10 @@ select.form-control { appearance: auto; }
 /* Shared UI components */
 .ui-button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1px solid transparent; border-radius: 12px; font: inherit; font-size: 13px; font-weight: 800; line-height: 1; text-decoration: none; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }
 .ui-button:hover { transform: translateY(-1px); }
+.ui-button:disabled, button.is-loading { cursor: wait; opacity: .72; pointer-events: none; transform: none; }
+.ui-button__spinner { width: 16px; height: 16px; flex: 0 0 auto; border: 2px solid currentColor; border-right-color: transparent; border-radius: 999px; animation: ui-button-spin .7s linear infinite; }
+@keyframes ui-button-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ui-button__spinner { animation-duration: 1.4s; } }
 .ui-button--primary { background: var(--green); color: #fff; box-shadow: 0 8px 20px rgba(11, 122, 92, .18); }
 .ui-button--primary:hover { background: var(--green-dark); }
 .ui-button--dark { background: var(--ink); color: #fff; }

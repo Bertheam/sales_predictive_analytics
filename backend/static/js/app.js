@@ -38,17 +38,80 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const resetSubmitLock = (form) => {
+    form.dataset.submitting = "false";
+    form.removeAttribute("aria-busy");
+    form.querySelectorAll("[data-submit-disabled-by-lock]").forEach((control) => {
+      control.disabled = false;
+      control.removeAttribute("data-submit-disabled-by-lock");
+      control.classList.remove("is-loading");
+      control.removeAttribute("aria-busy");
+      if (control.matches("input") && control.dataset.originalValue !== undefined) {
+        control.value = control.dataset.originalValue;
+        delete control.dataset.originalValue;
+      } else if (control.dataset.originalContent !== undefined) {
+        control.innerHTML = control.dataset.originalContent;
+        delete control.dataset.originalContent;
+      }
+    });
+    form.querySelectorAll("[data-submit-value-mirror]").forEach((input) => input.remove());
+  };
+
+  const lockSubmittedForm = (form, submitter) => {
+    form.dataset.submitting = "true";
+    form.setAttribute("aria-busy", "true");
+
+    if (submitter?.name) {
+      const mirror = document.createElement("input");
+      mirror.type = "hidden";
+      mirror.name = submitter.name;
+      mirror.value = submitter.value;
+      mirror.dataset.submitValueMirror = "true";
+      form.appendChild(mirror);
+    }
+
+    const activeButton = submitter || form.querySelector('button[type="submit"], input[type="submit"]');
+    if (activeButton) {
+      const loadingLabel = activeButton.dataset.loadingLabel || "Traitement en cours…";
+      activeButton.classList.add("is-loading");
+      activeButton.setAttribute("aria-busy", "true");
+      if (activeButton.matches("input")) {
+        activeButton.dataset.originalValue = activeButton.value;
+        activeButton.value = loadingLabel;
+      } else {
+        activeButton.dataset.originalContent = activeButton.innerHTML;
+        const spinner = document.createElement("span");
+        spinner.className = "ui-button__spinner";
+        spinner.setAttribute("aria-hidden", "true");
+        const label = document.createElement("span");
+        label.textContent = loadingLabel;
+        activeButton.replaceChildren(spinner, label);
+      }
+    }
+
+    form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach((control) => {
+      if (!control.disabled) {
+        control.disabled = true;
+        control.dataset.submitDisabledByLock = "true";
+      }
+    });
+  };
+
   document.querySelectorAll("form[data-confirm-form]").forEach((form) => {
     form.addEventListener("submit", async (event) => {
       if (form.dataset.confirmed === "true") return;
       event.preventDefault();
+      if (form.dataset.confirmPending === "true") return;
+      form.dataset.confirmPending = "true";
+      const submitter = event.submitter;
       const title = form.dataset.confirmTitle || "Confirmer cette action ?";
       const text = form.dataset.confirmText || "";
       if (!window.Swal) {
         if (window.confirm(title)) {
           form.dataset.confirmed = "true";
-          form.requestSubmit();
+          form.requestSubmit(submitter);
         }
+        form.dataset.confirmPending = "false";
         return;
       }
       const result = await window.Swal.fire({
@@ -61,11 +124,27 @@ document.addEventListener("DOMContentLoaded", () => {
         reverseButtons: true,
         customClass: { confirmButton: "swal-confirm", cancelButton: "swal-cancel" },
       });
+      form.dataset.confirmPending = "false";
       if (result.isConfirmed) {
         form.dataset.confirmed = "true";
-        form.requestSubmit();
+        form.requestSubmit(submitter);
       }
     });
+  });
+
+  document.querySelectorAll('form[method="post"], form[data-submit-lock]').forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      if (event.defaultPrevented) return;
+      if (form.dataset.submitting === "true") {
+        event.preventDefault();
+        return;
+      }
+      lockSubmittedForm(form, event.submitter);
+    });
+  });
+
+  window.addEventListener("pageshow", () => {
+    document.querySelectorAll('form[data-submitting="true"]').forEach(resetSubmitLock);
   });
 
   document.addEventListener("click", (event) => {
