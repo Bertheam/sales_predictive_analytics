@@ -18,7 +18,21 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    existing_columns = {
+        column["name"]
+        for column in sa.inspect(op.get_bind()).get_columns("forecast_results")
+    }
+    quantile_columns = {"predicted_p50", "predicted_p80", "predicted_p90"}
+
+    # Fresh installations load the current SQL schema before Alembic runs. In
+    # that case the quantile columns and their checks already exist, while
+    # upgraded installations still need this revision to add them.
+    if quantile_columns.issubset(existing_columns):
+        return
+
     for column in ("predicted_p50", "predicted_p80", "predicted_p90"):
+        if column in existing_columns:
+            continue
         op.add_column(
             "forecast_results",
             sa.Column(column, sa.Numeric(16, 2), nullable=True),

@@ -1,0 +1,59 @@
+{% extends "base_app.html" %}
+{% block title %}Tableau de bord · NexaStock{% endblock %}
+{% block content %}
+  <section class="page-heading">
+    <div><span class="eyebrow">Analyse d’activité</span><h1>Tableau de bord</h1><p>Comment l’activité de <strong>{{ active_company.name }}</strong> a-t-elle évolué sur cette période ?</p></div>
+    <div class="date-chip">{{ dashboard.start_date|date:"d/m/Y" }} → {{ dashboard.end_date|date:"d/m/Y" }}<br>{% if dashboard.last_updated_at %}Mise à jour {{ dashboard.last_updated_at|date:"d/m/Y à H:i" }}{% endif %}</div>
+  </section>
+
+  <section class="panel dashboard-filters">
+    <div class="period-shortcuts" aria-label="Raccourcis de période">
+      <a class="{% if active_period == '7d' %}active{% endif %}" href="?period=7d">7 jours</a>
+      <a class="{% if active_period == '30d' %}active{% endif %}" href="?period=30d">30 jours</a>
+      <a class="{% if active_period == '90d' %}active{% endif %}" href="?period=90d">90 jours</a>
+      <a class="{% if active_period == 'month' %}active{% endif %}" href="?period=month">Ce mois</a>
+      <a class="{% if active_period == 'year' %}active{% endif %}" href="?period=year">Cette année</a>
+    </div>
+    <form method="get" class="date-range-form">
+      <label>Du <input type="date" name="start" value="{{ filters.start|date:'Y-m-d' }}" required></label>
+      <label>Au <input type="date" name="end" value="{{ filters.end|date:'Y-m-d' }}" required></label>
+      <button class="filter-button" type="submit">Appliquer</button>
+    </form>
+  </section>
+
+  <section class="metric-grid dashboard-metrics">
+    {% for metric in dashboard.metrics %}
+      <article class="metric-card">
+        <small>{{ metric.label }}</small>
+        <strong>{{ metric.value|floatformat:"0g" }}{% if metric.key == 'revenue' or metric.key == 'average_basket' %} {{ active_company.currency }}{% endif %}</strong>
+        <p class="metric-change{% if metric.change > 0 %} positive{% elif metric.change < 0 %} negative{% endif %}">
+          {% if metric.change is None %}Pas de période comparable{% elif metric.change > 0 %}↑ {{ metric.change }} %{% elif metric.change < 0 %}↓ {{ metric.change|stringformat:"s"|cut:"-" }} %{% else %}→ 0 %{% endif %}
+          par rapport au {{ dashboard.previous_start|date:"d/m" }}–{{ dashboard.previous_end|date:"d/m" }}
+        </p>
+      </article>
+    {% endfor %}
+  </section>
+
+  <section class="panel trend-panel">
+    <div class="panel-heading"><div><span class="eyebrow">Évolution quotidienne</span><h2>Chiffre d’affaires et quantités</h2></div><div class="chart-legend"><span class="revenue">CA</span><span class="quantity">Quantité</span></div></div>
+    {% if dashboard.chart.has_data %}
+      <div class="line-chart" role="img" aria-label="Courbes quotidiennes du chiffre d’affaires et des quantités vendues">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <line x1="0" y1="90" x2="100" y2="90"></line><line x1="0" y1="55" x2="100" y2="55"></line><line x1="0" y1="20" x2="100" y2="20"></line>
+          <polyline class="revenue-line" points="{{ dashboard.chart.revenue_points }}"></polyline>
+          <polyline class="quantity-line" points="{{ dashboard.chart.quantity_points }}"></polyline>
+        </svg>
+      </div>
+      <div class="chart-axis"><span>{{ dashboard.start_date|date:"d/m" }}</span><span>{{ dashboard.end_date|date:"d/m" }}</span></div>
+    {% else %}<div class="empty-state"><strong>Aucune vente sur cette période</strong><p>Modifiez la période pour afficher une évolution réelle.</p></div>{% endif %}
+  </section>
+
+  <section class="analytics-grid">
+    {% include "dashboard/ranking_panel.html" with title="Meilleurs produits" rows=dashboard.top_products secondary="quantity" currency=active_company.currency only %}
+    {% include "dashboard/ranking_panel.html" with title="Catégories les plus performantes" rows=dashboard.top_categories secondary="quantity" currency=active_company.currency only %}
+    {% include "dashboard/ranking_panel.html" with title="Meilleurs clients" rows=dashboard.top_customers secondary="transactions" currency=active_company.currency only %}
+    {% include "dashboard/ranking_panel.html" with title="Moyens de paiement" rows=dashboard.payment_methods secondary="transactions" currency=active_company.currency only %}
+    {% include "dashboard/ranking_panel.html" with title="Statuts de paiement" rows=dashboard.payment_statuses secondary="transactions" currency=active_company.currency only %}
+    {% include "dashboard/ranking_panel.html" with title="Jours les plus forts" rows=dashboard.weekdays secondary="transactions" currency=active_company.currency only %}
+  </section>
+{% endblock %}
