@@ -139,6 +139,18 @@ cd sales_predictive_analytics
 
 Remplacez `<URL_DU_DEPOT>` par l'URL Git réelle du projet.
 
+Si le projet est déjà cloné et que `main` vient d'être récupérée, le démarrage
+complet tient à ces commandes :
+
+```bash
+git pull origin main
+cp -n .env.example .env
+docker compose up --build
+```
+
+`cp -n` crée `.env` uniquement s'il n'existe pas et préserve donc la
+configuration locale d'un développeur déjà installé.
+
 ### 2. Préparer la configuration
 
 Copiez le fichier d'exemple :

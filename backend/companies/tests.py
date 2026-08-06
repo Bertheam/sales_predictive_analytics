@@ -263,7 +263,7 @@ class TeamManagementTests(TestCase):
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
         html_body, content_type = mail.outbox[0].alternatives[0]
         self.assertEqual(content_type, "text/html")
-        self.assertIn("Accepter l’invitation", html_body)
+        self.assertIn("Entrer dans mon dépôt", html_body)
         self.assertIn(self.company.name, html_body)
 
     def test_active_member_cannot_be_invited_twice(self):
