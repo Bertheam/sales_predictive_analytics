@@ -21,6 +21,7 @@ __pycache__/
 .DS_Store
 *.log
 *.zip
+*.exe
 *.dump
 *.backup
 backups/

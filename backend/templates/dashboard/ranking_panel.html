@@ -1,0 +1,10 @@
+<article class="panel ranking-panel">
+  <div class="panel-heading"><h2>{{ title }}</h2></div>
+  {% if rows %}
+    <ol class="ranking-list">
+      {% for row in rows %}
+        <li><div class="ranking-copy"><strong>{{ row.label }}</strong><span>{{ row.revenue|floatformat:"0g" }} {{ currency }} · {% if secondary == 'quantity' %}{{ row.quantity|floatformat:"0g" }} colis{% else %}{{ row.transactions }} transaction{{ row.transactions|pluralize }}{% endif %}</span></div><div class="ranking-bar"><i style="width:{{ row.share_percent }}%"></i></div></li>
+      {% endfor %}
+    </ol>
+  {% else %}<div class="empty-state"><strong>Aucune donnée</strong><p>Aucune statistique disponible sur cette période.</p></div>{% endif %}
+</article>

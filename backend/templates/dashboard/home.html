@@ -2,38 +2,77 @@
 {% block title %}Vue d’ensemble · NexaStock{% endblock %}
 {% block content %}
   <section class="page-heading">
-    <div><span class="eyebrow">Aujourd’hui</span><h1>Bonjour {{ request.user.full_name|default:request.user.email|truncatewords:1 }}.</h1>
-      <p>Voici le point de situation de <strong>{{ active_company.name }}</strong>.</p></div>
+    <div>
+      <span class="eyebrow">Maintenant</span>
+      <h1>Bonjour {{ request.user.full_name|default:request.user.email|truncatewords:1 }}.</h1>
+      <p>Voici ce qu’il faut savoir et faire pour <strong>{{ active_company.name }}</strong>.</p>
+    </div>
     <div class="date-chip">
-      {% if snapshot.min_date %}{{ snapshot.min_date|date:"d/m/Y" }} → {{ snapshot.max_date|date:"d/m/Y" }}{% else %}Données du dépôt{% endif %}
-      · {{ active_company.currency }}
+      7 derniers jours · {{ snapshot.start_date|date:"d/m/Y" }} → {{ snapshot.end_date|date:"d/m/Y" }}<br>
+      {% if snapshot.last_updated_at %}Mise à jour {{ snapshot.last_updated_at|date:"d/m/Y à H:i" }}{% else %}Aucune donnée mise à jour{% endif %}
     </div>
   </section>
-  <section class="welcome-banner">
-    <div><span class="pill">NOUVEL ESPACE</span><h2>Votre centre de pilotage est prêt.</h2>
-      <p>Commencez par importer vos produits, votre stock et vos ventes. Les indicateurs et prévisions seront ensuite calculés pour ce dépôt uniquement.</p>
-      <div class="button-row"><a class="primary-button inline-button" href="{% url 'operations:products' %}">Gérer mes produits</a>{% if streamlit_url %}<a class="text-button" href="{{ streamlit_url }}" target="_blank" rel="noopener noreferrer">Explorer le laboratoire ↗</a>{% endif %}</div>
-    </div><div class="forecast-orbit"><span>J+7</span><i></i><b>Prévision</b></div>
+  <section class="welcome-banner overview-banner">
+    <div>
+      {% if not snapshot.company_configured %}<span class="pill">NOUVEL ESPACE</span>{% else %}<span class="pill">POINT DE SITUATION</span>{% endif %}
+      <h2>{% if snapshot.risk_products %}{{ snapshot.risk_products }} produit{{ snapshot.risk_products|pluralize }} demande{{ snapshot.risk_products|pluralize }} votre attention.{% else %}Votre activité est sous contrôle.{% endif %}</h2>
+      <p>Les indicateurs ci-dessous couvrent uniquement les sept derniers jours et votre dépôt actif. Ouvrez une carte pour agir.</p>
+      <div class="button-row">
+        <a class="primary-button inline-button" href="{% url 'dashboard:activity' %}">Analyser l’activité</a>
+        <a class="text-button" href="{% url 'decisions:center' %}">Voir les priorités de réapprovisionnement →</a>
+      </div>
+    </div>
+    <div class="forecast-orbit"><span>7 j</span><i></i><b>Période active</b></div>
   </section>
-  <section class="metric-grid" aria-label="Indicateurs principaux">
-    <article class="metric-card"><span class="metric-icon green">↗</span><small>Chiffre d’affaires historique</small><strong>{% if snapshot.sales_count %}{{ snapshot.revenue|floatformat:"0g" }}{% else %}—{% endif %}</strong><p>{{ snapshot.sales_count }} vente{{ snapshot.sales_count|pluralize }}</p></article>
-    <article class="metric-card"><span class="metric-icon blue">▦</span><small>Stock disponible</small><strong>{% if snapshot.active_products %}{{ snapshot.current_stock|floatformat:"0g" }}{% else %}—{% endif %}</strong><p>{{ snapshot.active_products }} produit{{ snapshot.active_products|pluralize }} actif{{ snapshot.active_products|pluralize }}</p></article>
-    <article class="metric-card"><span class="metric-icon amber">!</span><small>Produits à risque</small><strong>{% if snapshot.ready %}{{ snapshot.risk_products }}{% else %}—{% endif %}</strong><p>Rupture ou seuil minimum atteint</p></article>
-    <article class="metric-card accent"><span class="metric-icon violet">◈</span><small>Quantité vendue</small><strong>{% if snapshot.sales_count %}{{ snapshot.quantity_sold|floatformat:"0g" }}{% else %}—{% endif %}</strong><p>Colis sur la période disponible</p></article>
+
+  <section class="metric-grid" aria-label="Indicateurs des sept derniers jours">
+    <a class="metric-card metric-card-link" href="{% url 'operations:sales' %}">
+      <span class="metric-icon green">↗</span><small>Chiffre d’affaires · 7 jours</small>
+      <strong>{{ snapshot.revenue|floatformat:"0g" }} {{ active_company.currency }}</strong>
+      <p class="metric-change{% if snapshot.revenue_change > 0 %} positive{% elif snapshot.revenue_change < 0 %} negative{% endif %}">
+        {% if snapshot.revenue_change is None %}Pas de période comparable{% elif snapshot.revenue_change > 0 %}↑ {{ snapshot.revenue_change }} %{% elif snapshot.revenue_change < 0 %}↓ {{ snapshot.revenue_change|stringformat:"s"|cut:"-" }} %{% else %}→ 0 %{% endif %} vs 7 jours précédents
+      </p>
+    </a>
+    <a class="metric-card metric-card-link" href="{% url 'operations:stocks' %}">
+      <span class="metric-icon blue">▦</span><small>Stock disponible</small>
+      <strong>{{ snapshot.current_stock|floatformat:"0g" }}</strong>
+      <p class="metric-change{% if snapshot.stock_change > 0 %} positive{% elif snapshot.stock_change < 0 %} negative{% endif %}">
+        {% if snapshot.stock_change is None %}Pas de stock antérieur comparable{% elif snapshot.stock_change > 0 %}↑ {{ snapshot.stock_change }} %{% elif snapshot.stock_change < 0 %}↓ {{ snapshot.stock_change|stringformat:"s"|cut:"-" }} %{% else %}→ 0 %{% endif %} vs situation précédente
+      </p>
+    </a>
+    <a class="metric-card metric-card-link" href="{% url 'decisions:center' %}">
+      <span class="metric-icon amber">!</span><small>Produits à risque</small>
+      <strong>{{ snapshot.risk_products }}</strong>
+      <p>Rupture ou seuil minimum atteint · ouvrir le réapprovisionnement</p>
+    </a>
+    <a class="metric-card metric-card-link accent" href="{% url 'operations:sales' %}">
+      <span class="metric-icon violet">◈</span><small>Quantité vendue · 7 jours</small>
+      <strong>{{ snapshot.quantity_sold|floatformat:"0g" }}</strong>
+      <p class="metric-change{% if snapshot.quantity_change > 0 %} positive{% elif snapshot.quantity_change < 0 %} negative{% endif %}">
+        {% if snapshot.quantity_change is None %}Pas de période comparable{% elif snapshot.quantity_change > 0 %}↑ {{ snapshot.quantity_change }} %{% elif snapshot.quantity_change < 0 %}↓ {{ snapshot.quantity_change|stringformat:"s"|cut:"-" }} %{% else %}→ 0 %{% endif %} vs 7 jours précédents
+      </p>
+    </a>
   </section>
+
   <section class="dashboard-grid" id="demarrage">
-    <article class="panel setup-panel"><div class="panel-heading"><div><span class="eyebrow">Premiers pas</span><h2>Configurez votre dépôt</h2></div><span class="progress-label">0 / 3</span></div>
-      <div class="progress-track"><i></i></div>
+    <article class="panel setup-panel">
+      <div class="panel-heading"><div><span class="eyebrow">Progression réelle</span><h2>Configuration du dépôt</h2></div><span class="progress-label">{{ snapshot.setup_completed }} / 3</span></div>
+      <div class="progress-track"><i style="width:{{ snapshot.setup_percent }}%"></i></div>
       <ol class="setup-list">
-        <li><span>1</span><div><strong>Importer le catalogue produits</strong><p>Références, catégories, prix de vente et seuils.</p></div><b>→</b></li>
-        <li><span>2</span><div><strong>Renseigner le stock initial</strong><p>Quantités disponibles pour démarrer sans approximation.</p></div><b>→</b></li>
-        <li><span>3</span><div><strong>Importer l’historique des ventes</strong><p>La matière première de vos analyses prédictives.</p></div><b>→</b></li>
+        {% for step in snapshot.setup_steps %}
+          <li class="{% if step.complete %}complete{% endif %}">
+            <span>{% if step.complete %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
+            <div><strong>{{ step.label }}</strong><p>{% if step.complete %}Étape terminée pour ce dépôt.{% else %}Cette étape est encore nécessaire.{% endif %}</p></div>
+            {% if forloop.counter == 1 %}<a href="{% url 'companies:edit' active_company.id %}">→</a>{% elif forloop.counter == 2 %}<a href="{% url 'operations:products' %}">→</a>{% else %}<a href="{% url 'operations:sales' %}">→</a>{% endif %}
+          </li>
+        {% endfor %}
       </ol>
     </article>
-    <article class="panel insight-panel"><span class="eyebrow light">Intelligence prédictive</span><h2>Anticipez au lieu de subir.</h2>
-      <p>NexaStock compare plusieurs approches, mesure leur qualité et retient le modèle le plus fiable pour chaque produit.</p>
-      <div class="insight-stats"><div><strong>J+1 → J+7</strong><span>Horizon opérationnel</span></div><div><strong>MAE · RMSE</strong><span>Qualité surveillée</span></div></div>
-      <a href="{% url 'decisions:center' %}">Voir les priorités de réapprovisionnement <span>→</span></a>
+    <article class="panel insight-panel">
+      <span class="eyebrow light">Décision immédiate</span><h2>Concentrez-vous sur l’essentiel.</h2>
+      <p>{{ snapshot.sales_count }} transaction{{ snapshot.sales_count|pluralize }} sur la période. Consultez les tendances détaillées ou préparez les réapprovisionnements prioritaires.</p>
+      <div class="insight-stats"><div><strong>{{ snapshot.sales_count }}</strong><span>Transactions sur 7 jours</span></div><div><strong>{{ snapshot.active_products }}</strong><span>Produits actifs</span></div></div>
+      <a href="{% url 'dashboard:activity' %}">Ouvrir le tableau de bord <span>→</span></a>
     </article>
   </section>
 {% endblock %}

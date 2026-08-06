@@ -204,12 +204,51 @@ select.form-control { appearance: auto; }
 .swal-confirm { border-radius: 10px !important; background: var(--green) !important; }
 .swal-cancel { border-radius: 10px !important; background: #e8eeeb !important; color: var(--ink) !important; }
 
+.metric-card-link { display: block; color: inherit; text-decoration: none; transition: transform .18s ease, box-shadow .18s ease; }
+.metric-card-link:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(17, 47, 38, .1); }
+.metric-change { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.metric-change.positive { color: var(--green-dark); }
+.metric-change.negative { color: #b54747; }
+.setup-list { display: grid; gap: 9px; padding: 0; list-style: none; }
+.setup-list a { display: flex; align-items: center; gap: 9px; color: var(--muted); }
+.setup-list li.complete a { color: var(--green-dark); }
+.dashboard-filters { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+.period-shortcuts { display: flex; flex-wrap: wrap; gap: 7px; }
+.period-shortcuts a { padding: 8px 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.period-shortcuts a.active, .period-shortcuts a:hover { border-color: var(--green); background: var(--mint); color: var(--green-dark); }
+.date-range-form { display: flex; align-items: end; gap: 9px; }
+.date-range-form label { display: grid; gap: 5px; color: var(--muted); font-size: 10px; font-weight: 750; text-transform: uppercase; }
+.date-range-form input { min-height: 38px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); font: inherit; }
+.filter-button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 9px; background: var(--green); color: #fff; font-weight: 750; cursor: pointer; }
+.trend-panel { margin-top: 18px; }
+.chart-legend { display: flex; gap: 16px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.chart-legend span::before { display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 99px; content: ""; }
+.chart-legend .revenue::before { background: var(--green); }
+.chart-legend .quantity::before { background: #d89b2b; }
+.line-chart { height: 280px; margin-top: 20px; }
+.line-chart svg { width: 100%; height: 100%; overflow: visible; }
+.line-chart line { stroke: var(--line); stroke-width: .35; vector-effect: non-scaling-stroke; }
+.line-chart polyline { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.line-chart .revenue-line { stroke: var(--green); }
+.line-chart .quantity-line { stroke: #d89b2b; }
+.chart-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
+.analytics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.ranking-list { display: grid; gap: 14px; margin: 0; padding-left: 24px; }
+.ranking-copy { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.ranking-copy strong { font-size: 12px; }
+.ranking-copy span { color: var(--muted); font-size: 10px; text-align: right; }
+.ranking-bar { height: 6px; overflow: hidden; border-radius: 99px; background: #edf2ef; }
+.ranking-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--green), #53b798); }
+
 @media (max-width: 760px) {
   .content-area { padding-bottom: 102px; }
   .user-dropdown .user-menu { padding: 0; border: 0; }
   .user-dropdown .user-menu > div, .dropdown-chevron { display: none; }
   .user-dropdown__menu { position: fixed; top: 70px; right: 14px; left: 14px; width: auto; }
   .profile-layout, .profile-fields, .team-layout { grid-template-columns: 1fr; }
+  .dashboard-filters, .date-range-form { align-items: stretch; flex-direction: column; }
+  .analytics-grid { grid-template-columns: 1fr; }
+  .line-chart { height: 210px; }
   .profile-card { padding: 24px; }
   .mobile-nav { position: fixed; z-index: 35; right: 10px; bottom: 10px; left: 10px; display: grid; grid-template-columns: repeat(5, 1fr); padding: 7px; border: 1px solid rgba(223, 232, 227, .9); border-radius: 18px; background: rgba(255, 255, 255, .94); box-shadow: 0 14px 40px rgba(17, 47, 38, .16); backdrop-filter: blur(14px); }
   .mobile-nav a { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 4px; padding: 7px 2px; border-radius: 12px; color: var(--muted); font-size: 9px; font-weight: 750; }
