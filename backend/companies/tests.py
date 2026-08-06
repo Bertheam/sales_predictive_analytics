@@ -244,6 +244,22 @@ class TeamManagementTests(TestCase):
         self.assertContains(response, "data-submit-lock")
         self.assertContains(response, 'data-loading-label="Envoi en cours…"')
 
+    def test_team_page_uses_a_business_friendly_sent_label(self):
+        CompanyInvitation.objects.create(
+            company=self.company,
+            email="sent@example.com",
+            token_hash=hash_invitation_token("sent-label-token"),
+            role=Membership.Role.VIEWER,
+            invited_by=self.owner,
+            expires_at=timezone.now() + timedelta(days=3),
+            email_status=CompanyInvitation.EmailStatus.SENT,
+        )
+
+        response = self.client.get(reverse("companies:team"))
+
+        self.assertContains(response, "E-mail envoyé")
+        self.assertNotContains(response, "Accepté par Brevo")
+
     def test_viewer_cannot_open_team_page(self):
         viewer, membership = self.create_member()
         self.client.force_login(viewer)

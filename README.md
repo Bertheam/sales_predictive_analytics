@@ -590,10 +590,10 @@ expéditrice dans Brevo et authentifiez idéalement son domaine avec DKIM et DMA
 Les invitations utilisent `backend/templates/emails/company_invitation.html`
 avec un fallback texte. Django crée l'invitation immédiatement, puis Celery
 effectue l'envoi SMTP avec plusieurs tentatives. La page **Équipe** affiche
-`En attente d'envoi`, `Envoi en cours`, `Accepté par Brevo` ou `Échec de
-l'envoi`. « Accepté par Brevo » confirme la remise au serveur SMTP ; la
-livraison finale dans la boîte du destinataire reste consultable dans les
-journaux transactionnels Brevo.
+`En attente d'envoi`, `Envoi en cours`, `E-mail envoyé` ou `Échec de l'envoi`.
+Le libellé métier « E-mail envoyé » signifie techniquement que Brevo a accepté
+le message ; la livraison finale dans la boîte du destinataire reste
+consultable dans les journaux transactionnels Brevo.
 
 L'action **Renvoyer le lien** invalide l'ancien jeton, prolonge la validité de
 trois jours et remet un nouvel e-mail en file. Le worker et le service Django
