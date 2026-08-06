@@ -1,0 +1,1125 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/66uu6u",
+    "id": "66uu6u",
+    "slide": 2,
+    "layoutId": "5b001bbe-a3db-4d26-9c98-ca0a7b95e625",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "7d6bd602-70a4-430d-b610-18f7b57e874c",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#F5F7F3",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "+mn-lt"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "5b001bbe-a3db-4d26-9c98-ca0a7b95e625",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "7d6bd602-70a4-430d-b610-18f7b57e874c",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "7d6bd602-70a4-430d-b610-18f7b57e874c",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/zm9ona1o",
+      "id": "1",
+      "bbox": [
+        64,
+        52,
+        420,
+        24
+      ],
+      "geometry": "rect",
+      "text": "LE CONSTAT",
+      "textPreview": "LE CONSTAT",
+      "resolvedFontSize": 13,
+      "resolvedTextStyle": {
+        "fontSize": 13,
+        "typeface": "+mn-lt",
+        "color": "#0A8565",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "LE CONSTAT"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "LE CONSTAT",
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "color": "#0A8565",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "LE CONSTAT",
+              "fontSize": 13,
+              "color": "#0A8565",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/0nipgfi9",
+      "id": "2",
+      "bbox": [
+        64,
+        88,
+        1000,
+        92
+      ],
+      "geometry": "rect",
+      "text": "Dans un dépôt, une mauvaise décision se paie immédiatement.",
+      "textPreview": "Dans un dépôt, une mauvaise décision se paie immédiatement.",
+      "resolvedFontSize": 40,
+      "resolvedTextStyle": {
+        "fontSize": 40,
+        "typeface": "+mn-lt",
+        "color": "#0B211A",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Dans un dépôt, une mauvaise décision se paie"
+          },
+          {
+            "index": 2,
+            "text": "immédiatement."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Dans un dépôt, une mauvaise décision se paie immédiatement.",
+          "resolvedTextStyle": {
+            "fontSize": 40,
+            "color": "#0B211A",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Dans un dépôt, une mauvaise décision se paie immédiatement.",
+              "fontSize": 40,
+              "color": "#0B211A",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/1or6pkju",
+      "id": "3",
+      "bbox": [
+        64,
+        194,
+        900,
+        58
+      ],
+      "geometry": "rect",
+      "text": "Le défi n’est pas de produire plus de chiffres. C’est de savoir quoi vendre, quoi commander et quand agir.",
+      "textPreview": "Le défi n’est pas de produire plus de chiffres. C’est de savoir quoi vendre, quoi commander et quand agir.",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "+mn-lt",
+        "color": "#6B7D76",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Le défi n’est pas de produire plus de chiffres. C’est de savoir quoi vendre, quoi commander et"
+          },
+          {
+            "index": 2,
+            "text": "quand agir."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Le défi n’est pas de produire plus de chiffres. C’est de savoir quoi vendre, quoi commander et quand agir.",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "color": "#6B7D76",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Le défi n’est pas de produire plus de chiffres. C’est de savoir quoi vendre, quoi commander et quand agir.",
+              "fontSize": 20,
+              "color": "#6B7D76",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/qh07a50r",
+      "id": "4",
+      "bbox": [
+        64,
+        286,
+        342,
+        268
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#D8E3DE",
+      "lineWidth": 1
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ri9oja1c",
+      "id": "5",
+      "bbox": [
+        92,
+        316,
+        58,
+        34
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FCE7E5",
+      "lineColor": "#FCE7E5",
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/cjipcfix",
+      "id": "6",
+      "bbox": [
+        92,
+        323,
+        58,
+        19
+      ],
+      "geometry": "rect",
+      "text": "01",
+      "textPreview": "01",
+      "resolvedFontSize": 13,
+      "resolvedTextStyle": {
+        "fontSize": 13,
+        "typeface": "+mn-lt",
+        "color": "#D85D55",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "01"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "01",
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "color": "#D85D55",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "01",
+              "fontSize": 13,
+              "color": "#D85D55",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/dkr6lkji",
+      "id": "7",
+      "bbox": [
+        92,
+        384,
+        280,
+        42
+      ],
+      "geometry": "rect",
+      "text": "Rupture",
+      "textPreview": "Rupture",
+      "resolvedFontSize": 29,
+      "resolvedTextStyle": {
+        "fontSize": 29,
+        "typeface": "+mn-lt",
+        "color": "#0B211A",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Rupture"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Rupture",
+          "resolvedTextStyle": {
+            "fontSize": 29,
+            "color": "#0B211A",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Rupture",
+              "fontSize": 29,
+              "color": "#0B211A",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/2tg76l0v",
+      "id": "8",
+      "bbox": [
+        92,
+        444,
+        278,
+        76
+      ],
+      "geometry": "rect",
+      "text": "Une demande réelle existe, mais le produit n’est plus disponible.",
+      "textPreview": "Une demande réelle existe, mais le produit n’est plus disponible.",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "+mn-lt",
+        "color": "#6B7D76",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Une demande réelle existe, mais"
+          },
+          {
+            "index": 2,
+            "text": "le produit n’est plus disponible."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Une demande réelle existe, mais le produit n’est plus disponible.",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "color": "#6B7D76",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Une demande réelle existe, mais le produit n’est plus disponible.",
+              "fontSize": 17,
+              "color": "#6B7D76",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/3epofq1g",
+      "id": "9",
+      "bbox": [
+        453,
+        286,
+        342,
+        268
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#D8E3DE",
+      "lineWidth": 1
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/7ipkbytw",
+      "id": "10",
+      "bbox": [
+        481,
+        316,
+        58,
+        34
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFF1CE",
+      "lineColor": "#FFF1CE",
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/6hgjitsb",
+      "id": "11",
+      "bbox": [
+        481,
+        323,
+        58,
+        19
+      ],
+      "geometry": "rect",
+      "text": "02",
+      "textPreview": "02",
+      "resolvedFontSize": 13,
+      "resolvedTextStyle": {
+        "fontSize": 13,
+        "typeface": "+mn-lt",
+        "color": "#F4B94F",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "02"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "02",
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "color": "#F4B94F",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "02",
+              "fontSize": 13,
+              "color": "#F4B94F",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/tk72dob2",
+      "id": "12",
+      "bbox": [
+        481,
+        384,
+        280,
+        42
+      ],
+      "geometry": "rect",
+      "text": "Surstock",
+      "textPreview": "Surstock",
+      "resolvedFontSize": 29,
+      "resolvedTextStyle": {
+        "fontSize": 29,
+        "typeface": "+mn-lt",
+        "color": "#0B211A",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Surstock"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Surstock",
+          "resolvedTextStyle": {
+            "fontSize": 29,
+            "color": "#0B211A",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Surstock",
+              "fontSize": 29,
+              "color": "#0B211A",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/sjy1kjah",
+      "id": "13",
+      "bbox": [
+        481,
+        444,
+        278,
+        76
+      ],
+      "geometry": "rect",
+      "text": "La trésorerie reste immobilisée dans des références qui tournent peu.",
+      "textPreview": "La trésorerie reste immobilisée dans des références qui tournent peu.",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "+mn-lt",
+        "color": "#6B7D76",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "La trésorerie reste immobilisée"
+          },
+          {
+            "index": 2,
+            "text": "dans des références qui tournent"
+          },
+          {
+            "index": 3,
+            "text": "peu."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "La trésorerie reste immobilisée dans des références qui tournent peu.",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "color": "#6B7D76",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "La trésorerie reste immobilisée dans des références qui tournent peu.",
+              "fontSize": 17,
+              "color": "#6B7D76",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fm9kfyt8",
+      "id": "14",
+      "bbox": [
+        842,
+        286,
+        342,
+        268
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#D8E3DE",
+      "lineWidth": 1
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ulgjmtsn",
+      "id": "15",
+      "bbox": [
+        870,
+        316,
+        58,
+        34
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#EEE9FF",
+      "lineColor": "#EEE9FF",
+      "lineWidth": 0
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/h8r2h8by",
+      "id": "16",
+      "bbox": [
+        870,
+        323,
+        58,
+        19
+      ],
+      "geometry": "rect",
+      "text": "03",
+      "textPreview": "03",
+      "resolvedFontSize": 13,
+      "resolvedTextStyle": {
+        "fontSize": 13,
+        "typeface": "+mn-lt",
+        "color": "#7C62D7",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "03"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "03",
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "color": "#7C62D7",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "03",
+              "fontSize": 13,
+              "color": "#7C62D7",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 17,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/gni1o3ad",
+      "id": "17",
+      "bbox": [
+        870,
+        384,
+        280,
+        42
+      ],
+      "geometry": "rect",
+      "text": "Décision tardive",
+      "textPreview": "Décision tardive",
+      "resolvedFontSize": 29,
+      "resolvedTextStyle": {
+        "fontSize": 29,
+        "typeface": "+mn-lt",
+        "color": "#0B211A",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Décision tardive"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Décision tardive",
+          "resolvedTextStyle": {
+            "fontSize": 29,
+            "color": "#0B211A",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Décision tardive",
+              "fontSize": 29,
+              "color": "#0B211A",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 18,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/vq503uto",
+      "id": "18",
+      "bbox": [
+        870,
+        444,
+        278,
+        76
+      ],
+      "geometry": "rect",
+      "text": "Les ventes, le stock et les alertes restent dispersés ou difficiles à lire.",
+      "textPreview": "Les ventes, le stock et les alertes restent dispersés ou difficiles à lire.",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "+mn-lt",
+        "color": "#6B7D76",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Les ventes, le stock et les alertes"
+          },
+          {
+            "index": 2,
+            "text": "restent dispersés ou difficiles à"
+          },
+          {
+            "index": 3,
+            "text": "lire."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Les ventes, le stock et les alertes restent dispersés ou difficiles à lire.",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "color": "#6B7D76",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Les ventes, le stock et les alertes restent dispersés ou difficiles à lire.",
+              "fontSize": 17,
+              "color": "#6B7D76",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 19,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/apwja9c3",
+      "id": "19",
+      "bbox": [
+        64,
+        610,
+        900,
+        34
+      ],
+      "geometry": "rect",
+      "text": "NexaStock transforme ces trois risques en actions concrètes.",
+      "textPreview": "NexaStock transforme ces trois risques en actions concrètes.",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "+mn-lt",
+        "color": "#0A8565",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "NexaStock transforme ces trois risques en actions concrètes."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "NexaStock transforme ces trois risques en actions concrètes.",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "color": "#0A8565",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "NexaStock transforme ces trois risques en actions concrètes.",
+              "fontSize": 20,
+              "color": "#0A8565",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 20,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/e54nihcr",
+      "id": "20",
+      "bbox": [
+        64,
+        685,
+        350,
+        18
+      ],
+      "geometry": "rect",
+      "text": "NexaStock  •  Présentation du projet",
+      "textPreview": "NexaStock  •  Présentation du projet",
+      "resolvedFontSize": 11,
+      "resolvedTextStyle": {
+        "fontSize": 11,
+        "typeface": "+mn-lt",
+        "color": "#87958F",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "NexaStock  •  Présentation du projet"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "NexaStock  •  Présentation du projet",
+          "resolvedTextStyle": {
+            "fontSize": 11,
+            "color": "#87958F",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "NexaStock  •  Présentation du projet",
+              "fontSize": 11,
+              "color": "#87958F",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 21,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/z6d4r2dc",
+      "id": "21",
+      "bbox": [
+        1180,
+        685,
+        36,
+        18
+      ],
+      "geometry": "rect",
+      "text": "02",
+      "textPreview": "02",
+      "resolvedFontSize": 11,
+      "resolvedTextStyle": {
+        "fontSize": 11,
+        "typeface": "+mn-lt",
+        "color": "#87958F",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "02"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "02",
+          "resolvedTextStyle": {
+            "fontSize": 11,
+            "color": "#87958F",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "02",
+              "fontSize": 11,
+              "color": "#87958F",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}
