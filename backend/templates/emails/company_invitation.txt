@@ -1,0 +1,13 @@
+Bonjour,
+
+{{ invited_by_name }} vous invite à rejoindre {{ company.name }} sur NexaStock.
+
+Dépôt : {{ company.name }}
+Rôle : {{ role_label }}
+
+Acceptez l’invitation avant le {{ expires_at|date:"d/m/Y à H:i" }} :
+{{ accept_url }}
+
+Si vous ne reconnaissez pas cette demande, ignorez simplement ce message.
+
+L’équipe NexaStock

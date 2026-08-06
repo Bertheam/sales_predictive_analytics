@@ -258,6 +258,13 @@ class TeamManagementTests(TestCase):
         self.assertRedirects(response, reverse("companies:team"))
         self.assertEqual(len(mail.outbox), 1)
         self.assertNotIn(invitation.token_hash, mail.outbox[0].body)
+        self.assertIn(self.company.name, mail.outbox[0].body)
+        self.assertIn("Administrateur", mail.outbox[0].body)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
+        html_body, content_type = mail.outbox[0].alternatives[0]
+        self.assertEqual(content_type, "text/html")
+        self.assertIn("Accepter l’invitation", html_body)
+        self.assertIn(self.company.name, html_body)
 
     def test_active_member_cannot_be_invited_twice(self):
         user, _ = self.create_member()

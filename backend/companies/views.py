@@ -1,10 +1,10 @@
+import logging
+import smtplib
 from uuid import uuid4
 
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
-from django.core.mail import send_mail
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import Http404, HttpResponseForbidden
@@ -15,6 +15,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
 
 from .forms import CompanyEditForm, CompanyOnboardingForm, InvitationAcceptanceForm, InvitationForm, MemberRoleForm
+from .emails import send_company_invitation_email
 from .models import Company, CompanyInvitation, Membership
 from .permissions import company_roles_required
 from .services import (
@@ -31,6 +32,9 @@ from .services import (
 )
 from audit.models import AuditLog
 from audit.services import record_audit
+
+
+logger = logging.getLogger(__name__)
 
 
 def _unique_company_code(name):
@@ -217,18 +221,18 @@ def invite_member(request):
     accept_url = request.build_absolute_uri(
         reverse("companies:invitation-accept", args=[raw_token])
     )
-    sent = send_mail(
-        subject=f"Invitation à rejoindre {request.company.name} sur NexaStock",
-        message=(
-            f"Vous êtes invité(e) à rejoindre {request.company.name} avec le rôle "
-            f"{invitation.get_role_display()}.\n\n"
-            f"Acceptez l’invitation avant le {invitation.expires_at:%d/%m/%Y} :\n"
-            f"{accept_url}"
-        ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[invitation.email],
-        fail_silently=True,
-    )
+    try:
+        sent = send_company_invitation_email(
+            invitation=invitation,
+            accept_url=accept_url,
+        )
+    except (OSError, smtplib.SMTPException):
+        logger.exception(
+            "Échec de l’envoi de l’invitation %s à %s.",
+            invitation.id,
+            invitation.email,
+        )
+        sent = 0
     record_audit(request, action=AuditLog.Action.CREATE, resource_type="company_invitation", resource_id=invitation.id, description=f"Invitation de {invitation.email} comme {invitation.get_role_display()}.", metadata={"email": invitation.email, "role": invitation.role, "email_sent": bool(sent)})
     if sent:
         messages.success(request, f"Invitation envoyée à {invitation.email}.")

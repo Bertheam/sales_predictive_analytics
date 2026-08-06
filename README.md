@@ -35,6 +35,7 @@ Suivi de la qualité prédictive
 - Génération automatique des codes internes et numéros de mouvements.
 - Tableau de bord de qualité ML et détection de dérive.
 - Journal d’audit des connexions et actions sensibles, réservé au super administrateur.
+- E-mails transactionnels Brevo avec templates HTML responsive et fallback texte.
 
 ## Technologies
 
@@ -454,6 +455,25 @@ worker      → traitements Celery depuis la même image Docker
 beat        → planificateur Celery depuis la même image Docker
 ```
 
+Sur le plan Railway **Hobby**, limité à cinq services, l'architecture déployée
+regroupe provisoirement Worker et Beat dans un même service :
+
+```text
+Postgres + Django + Streamlit + Redis + celery-worker
+                                      └── Beat intégré
+```
+
+Commande de démarrage correspondante :
+
+```bash
+celery --workdir=backend -A config worker --beat --loglevel=INFO \
+  --concurrency=2 --schedule=/tmp/celerybeat-schedule
+```
+
+Cette configuration convient à une charge modérée. Sur un plan autorisant plus
+de services, séparez de nouveau `worker` et `beat` afin de pouvoir les superviser
+et les redimensionner indépendamment.
+
 ### Variables et démarrage du service Django
 
 Configurez au minimum :
@@ -473,14 +493,15 @@ STREAMLIT_PUBLIC_URL=https://<domaine-du-laboratoire>
 STREAMLIT_SIGNING_KEY=<secret-partage-long-et-aleatoire>
 STREAMLIT_ACCESS_TOKEN_TTL_SECONDS=300
 DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=<serveur-smtp>
+EMAIL_HOST=smtp-relay.brevo.com
 EMAIL_PORT=587
-EMAIL_HOST_USER=<utilisateur-smtp>
-EMAIL_HOST_PASSWORD=<mot-de-passe-smtp>
+EMAIL_HOST_USER=<identifiant-smtp-brevo>
+EMAIL_HOST_PASSWORD=<clé-smtp-brevo>
 EMAIL_USE_TLS=true
-DEFAULT_FROM_EMAIL=NexaStock <noreply@votre-domaine.com>
-CELERY_BROKER_URL=<url-redis-privee>
-CELERY_RESULT_BACKEND=<url-redis-privee>
+EMAIL_USE_SSL=false
+DEFAULT_FROM_EMAIL=NexaStock <adresse-verifiee@votre-domaine.com>
+CELERY_BROKER_URL=${{Redis.REDIS_URL}}
+CELERY_RESULT_BACKEND=${{Redis.REDIS_URL}}
 CELERY_AUTOMATION_ENABLED=false
 FORECAST_MAX_DATA_AGE_DAYS=3
 FORECAST_CHAMPION_MIN_IMPROVEMENT=5
@@ -504,9 +525,16 @@ Commande de démarrage du planificateur :
 celery --workdir=backend -A config beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule
 ```
 
-Déployez dans l'ordre `Postgres/Redis`, `web`, puis `worker` et `beat`. N'activez
-`CELERY_AUTOMATION_ENABLED=true` qu'après avoir validé une prévision manuelle en
-production.
+Déployez dans l'ordre `Postgres/Redis`, `web`, puis le service Celery combiné
+sur Hobby — ou `worker` et `beat` séparément sur un plan supérieur. N'activez
+`CELERY_AUTOMATION_ENABLED=true` qu'après avoir validé une prévision manuelle
+en production.
+
+Brevo doit utiliser une **clé SMTP**, et non une clé API. Vérifiez l'adresse
+expéditrice dans Brevo et authentifiez idéalement son domaine avec DKIM et DMARC.
+Les invitations utilisent `backend/templates/emails/company_invitation.html`
+avec un fallback texte. Les erreurs SMTP sont journalisées et signalées à
+l'utilisateur au lieu d'être ignorées silencieusement.
 
 ### Fraîcheur et sécurité des prévisions
 
