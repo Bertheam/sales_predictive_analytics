@@ -1,7 +1,7 @@
 from io import StringIO
 from datetime import timedelta
 from uuid import uuid4
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.core import mail
 from django.core.management import call_command
@@ -200,7 +200,10 @@ class CompanyFlowTests(TestCase):
         self.assertEqual(company.status, Company.Status.ACTIVE)
 
 
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    BREVO_API_KEY="",
+)
 class TeamManagementTests(TestCase):
     def setUp(self):
         self.owner = User.objects.create_user(
@@ -358,6 +361,41 @@ class TeamManagementTests(TestCase):
         invitation.refresh_from_db()
         self.assertEqual(result["status"], "stale")
         self.assertEqual(invitation.email_attempts, 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    @override_settings(
+        BREVO_API_KEY="test-brevo-api-key",
+        DEFAULT_FROM_EMAIL="NexaStock <verified@example.com>",
+    )
+    @patch("companies.emails.urlopen")
+    def test_invitation_task_uses_brevo_https_api(self, urlopen):
+        response = MagicMock()
+        response.read.return_value = b'{"messageId":"brevo-message-123"}'
+        urlopen.return_value.__enter__.return_value = response
+        raw_token = "brevo-api-token"
+        invitation = CompanyInvitation.objects.create(
+            company=self.company,
+            email="api-recipient@example.com",
+            token_hash=hash_invitation_token(raw_token),
+            role=Membership.Role.VIEWER,
+            invited_by=self.owner,
+            expires_at=timezone.now() + timedelta(days=3),
+        )
+
+        result = send_company_invitation.apply(args=[
+            str(invitation.id),
+            raw_token,
+            f"https://example.test/invitations/{raw_token}/accepter/",
+        ]).get()
+
+        invitation.refresh_from_db()
+        self.assertEqual(result["status"], "sent")
+        self.assertEqual(invitation.email_status, CompanyInvitation.EmailStatus.SENT)
+        self.assertEqual(invitation.email_message_id, "brevo-message-123")
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.full_url, "https://api.brevo.com/v3/smtp/email")
+        self.assertEqual(request.get_header("Api-key"), "test-brevo-api-key")
+        self.assertIn(b'"api-recipient@example.com"', request.data)
         self.assertEqual(len(mail.outbox), 0)
 
     def test_active_member_cannot_be_invited_twice(self):

@@ -182,9 +182,11 @@ def renew_invitation_link(invitation):
         invitation.email_sent_at = None
         invitation.email_failed_at = None
         invitation.email_error = ""
+        invitation.email_message_id = ""
         invitation.save(update_fields=[
             "token_hash", "expires_at", "email_status", "email_queued_at",
-            "email_sent_at", "email_failed_at", "email_error", "updated_at",
+            "email_sent_at", "email_failed_at", "email_error",
+            "email_message_id", "updated_at",
         ])
     return invitation, raw_token
 

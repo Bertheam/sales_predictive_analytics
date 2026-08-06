@@ -552,6 +552,8 @@ EMAIL_PORT=587
 EMAIL_HOST_USER=<identifiant-smtp-brevo>
 EMAIL_HOST_PASSWORD=<clé-smtp-brevo>
 EMAIL_TIMEOUT=15
+BREVO_API_KEY=<clé-api-brevo>
+BREVO_API_URL=https://api.brevo.com/v3/smtp/email
 EMAIL_USE_TLS=true
 EMAIL_USE_SSL=false
 DEFAULT_FROM_EMAIL=NexaStock <adresse-verifiee@votre-domaine.com>
@@ -585,8 +587,11 @@ sur Hobby — ou `worker` et `beat` séparément sur un plan supérieur. N'activ
 `CELERY_AUTOMATION_ENABLED=true` qu'après avoir validé une prévision manuelle
 en production.
 
-Brevo doit utiliser une **clé SMTP**, et non une clé API. Vérifiez l'adresse
-expéditrice dans Brevo et authentifiez idéalement son domaine avec DKIM et DMARC.
+Sur Railway Free, Trial ou Hobby, utilisez `BREVO_API_KEY` : l'envoi passe par
+l'API transactionnelle HTTPS, car les connexions SMTP sortantes y sont
+bloquées. Le transport SMTP reste disponible comme fallback local ou sur une
+offre Railway compatible. Vérifiez l'adresse expéditrice dans Brevo et
+authentifiez idéalement son domaine avec DKIM et DMARC.
 Les invitations utilisent `backend/templates/emails/company_invitation.html`
 avec un fallback texte. Django crée l'invitation immédiatement, puis Celery
 effectue l'envoi SMTP avec plusieurs tentatives. La page **Équipe** affiche

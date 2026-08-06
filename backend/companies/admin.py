@@ -25,6 +25,6 @@ class CompanyInvitationAdmin(admin.ModelAdmin):
     readonly_fields = (
         "token_hash", "invited_by", "accepted_by", "accepted_at", "email_attempts",
         "email_queued_at", "email_sent_at", "email_failed_at", "email_error",
-        "last_email_task_id",
+        "email_message_id", "last_email_task_id",
         "created_at", "updated_at",
     )

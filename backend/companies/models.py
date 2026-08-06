@@ -126,6 +126,7 @@ class CompanyInvitation(models.Model):
     email_sent_at = models.DateTimeField(null=True, blank=True)
     email_failed_at = models.DateTimeField(null=True, blank=True)
     email_error = models.TextField(blank=True)
+    email_message_id = models.CharField(max_length=255, blank=True)
     last_email_task_id = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

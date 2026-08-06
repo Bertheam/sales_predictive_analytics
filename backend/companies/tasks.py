@@ -41,11 +41,11 @@ def send_company_invitation(self, invitation_id, raw_token, accept_url):
     )
     invitation.refresh_from_db()
     try:
-        sent = send_company_invitation_email(
+        delivery_result = send_company_invitation_email(
             invitation=invitation,
             accept_url=accept_url,
         )
-        if not sent:
+        if not delivery_result:
             raise smtplib.SMTPException("Le serveur SMTP n’a accepté aucun message.")
     except (OSError, smtplib.SMTPException) as exc:
         error = str(exc)[:2000]
@@ -70,6 +70,9 @@ def send_company_invitation(self, invitation_id, raw_token, accept_url):
         email_sent_at=timezone.now(),
         email_failed_at=None,
         email_error="",
+        email_message_id=(
+            delivery_result if isinstance(delivery_result, str) else ""
+        )[:255],
         updated_at=timezone.now(),
     )
     return {"status": "sent", "invitation_id": str(invitation.pk)}
