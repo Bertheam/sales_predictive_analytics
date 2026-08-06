@@ -37,7 +37,7 @@
         <span class="lab-dot"></span>
         <strong>Laboratoire expert</strong>
         <p>Explorez les modèles et métriques avancées.</p>
-        <a href="{{ streamlit_url }}" target="_blank" rel="noopener">Ouvrir Streamlit ↗</a>
+        {% if streamlit_url %}<a href="{{ streamlit_url }}" target="_blank" rel="noopener noreferrer">Ouvrir Streamlit ↗</a>{% else %}<span class="text-xs text-emerald-200">Indisponible</span>{% endif %}
       </div>
     </aside>
     <main class="workspace min-w-0">

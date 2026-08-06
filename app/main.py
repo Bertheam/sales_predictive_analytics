@@ -1,8 +1,8 @@
 import streamlit as st
 from sqlalchemy import text
 
-from app.config.settings import settings
 from app.database.session import SessionLocal
+from app.security.signed_access import require_signed_access
 from app.utils.ui import apply_app_style, render_sidebar_brand
 
 
@@ -14,17 +14,18 @@ st.set_page_config(
 
 apply_app_style()
 render_sidebar_brand()
+access = require_signed_access()
 
 try:
-    with SessionLocal() as tenant_db:
+    with SessionLocal(access["company_id"]) as tenant_db:
         tenant_name = tenant_db.execute(
             text("SELECT name FROM companies WHERE id = :company_id AND status = 'ACTIVE'"),
-            {"company_id": settings.company_id},
+            {"company_id": access["company_id"]},
         ).scalar_one_or_none()
 except Exception as exc:
     st.error(
         "Le contexte du dépôt technique n'est pas disponible. "
-        "Vérifiez les migrations et STREAMLIT_COMPANY_ID."
+        "Vérifiez les migrations et le dépôt transmis par NexaStock."
     )
     st.exception(exc)
     st.stop()

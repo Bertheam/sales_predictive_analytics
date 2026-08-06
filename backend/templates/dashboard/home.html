@@ -12,7 +12,7 @@
   <section class="welcome-banner">
     <div><span class="pill">NOUVEL ESPACE</span><h2>Votre centre de pilotage est prêt.</h2>
       <p>Commencez par importer vos produits, votre stock et vos ventes. Les indicateurs et prévisions seront ensuite calculés pour ce dépôt uniquement.</p>
-      <div class="button-row"><a class="primary-button inline-button" href="{% url 'operations:products' %}">Gérer mes produits</a><a class="text-button" href="{{ streamlit_url }}" target="_blank" rel="noopener">Explorer le laboratoire ↗</a></div>
+      <div class="button-row"><a class="primary-button inline-button" href="{% url 'operations:products' %}">Gérer mes produits</a>{% if streamlit_url %}<a class="text-button" href="{{ streamlit_url }}" target="_blank" rel="noopener noreferrer">Explorer le laboratoire ↗</a>{% endif %}</div>
     </div><div class="forecast-orbit"><span>J+7</span><i></i><b>Prévision</b></div>
   </section>
   <section class="metric-grid" aria-label="Indicateurs principaux">

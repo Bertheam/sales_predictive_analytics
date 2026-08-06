@@ -33,9 +33,16 @@ def apply_company_context(session, transaction, connection) -> None:
     )
 
 
-def SessionLocal():
-    """Return a session locked to the configured Streamlit company."""
-    return _SessionFactory(info={"company_id": settings.company_id})
+def SessionLocal(company_id=None):
+    """Return a session locked to the authenticated Streamlit company."""
+    if company_id is None and settings.STREAMLIT_REQUIRE_SIGNED_ACCESS:
+        import streamlit as st
+
+        access = st.session_state.get("signed_access")
+        if not access:
+            raise RuntimeError("Aucun dépôt Streamlit authentifié.")
+        company_id = access["company_id"]
+    return _SessionFactory(info={"company_id": company_id or settings.company_id})
 
 
 def session_for_company(company_id):

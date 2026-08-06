@@ -23,6 +23,11 @@ class Settings:
         "STREAMLIT_USE_RUNTIME_ROLE",
         "false",
     ).lower() in {"1", "true", "yes"}
+    STREAMLIT_SIGNING_KEY: str = os.getenv("STREAMLIT_SIGNING_KEY", "")
+    STREAMLIT_REQUIRE_SIGNED_ACCESS: bool = os.getenv(
+        "STREAMLIT_REQUIRE_SIGNED_ACCESS",
+        "false",
+    ).lower() in {"1", "true", "yes"}
 
     @property
     def company_id(self) -> str:

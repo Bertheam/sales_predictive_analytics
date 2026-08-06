@@ -470,6 +470,8 @@ DJANGO_SECURE_SSL_REDIRECT=true
 DJANGO_SECURE_HSTS_SECONDS=31536000
 AUDIT_TRUST_X_FORWARDED_FOR=true
 STREAMLIT_PUBLIC_URL=https://<domaine-du-laboratoire>
+STREAMLIT_SIGNING_KEY=<secret-partage-long-et-aleatoire>
+STREAMLIT_ACCESS_TOKEN_TTL_SECONDS=300
 DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 EMAIL_HOST=<serveur-smtp>
 EMAIL_PORT=587
@@ -578,15 +580,21 @@ Dans l'onglet **Variables** du service applicatif, configurez :
 ```dotenv
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 INITIALIZE_DATABASE=false
-STREAMLIT_COMPANY_ID=00000000-0000-4000-8000-000000000001
+RUN_ALEMBIC=false
 STREAMLIT_USE_RUNTIME_ROLE=false
+STREAMLIT_SIGNING_KEY=<meme-secret-que-le-service-django>
+STREAMLIT_REQUIRE_SIGNED_ACCESS=true
 ```
 
 Adaptez `Postgres` si le service PostgreSQL porte un autre nom dans Railway.
 `DATABASE_URL` est prioritaire sur les variables `DB_HOST`, `DB_PORT`,
 `DB_NAME`, `DB_USER` et `DB_PASSWORD`.
 
-Railway injecte automatiquement `PORT`. Le conteneur démarre Streamlit avec :
+Le secret de signature doit être identique sur Django et Streamlit. Django crée
+un lien valable cinq minutes contenant le dépôt actif ; Streamlit refuse tout
+accès direct ou tout jeton altéré avant d'ouvrir une session PostgreSQL.
+
+Railway injecte automatiquement `PORT`. Configurez cette Start Command :
 
 ```bash
 python -m streamlit run app/main.py \
@@ -594,20 +602,18 @@ python -m streamlit run app/main.py \
   --server.port=${PORT:-8501}
 ```
 
-Dans le service Streamlit, laissez de préférence le champ **Start Command** vide
-afin que Railway utilise l'`ENTRYPOINT` et le `CMD` du Dockerfile. Si une commande
-personnalisée est indispensable, utilisez explicitement un shell :
-
 ```bash
-sh -c 'python -m alembic upgrade head && python -m streamlit run app/main.py --server.address=0.0.0.0 --server.port=${PORT:-8501}'
+sh -c 'python -m streamlit run app/main.py --server.address=0.0.0.0 --server.port=${PORT:-8501} --server.headless=true'
 ```
 
 Le démarrage Railway suit uniquement ce cycle :
 
 ```text
-Connexion au PostgreSQL Railway
+Validation du lien signé Django
               ↓
-alembic upgrade head
+Sélection du dépôt autorisé
+              ↓
+Connexion au PostgreSQL Railway
               ↓
 Streamlit sur le port Railway
 ```
