@@ -42,7 +42,7 @@ services:
     volumes:
       - .:/workspace
       - dev_node_modules:/workspace/node_modules
-    command: sh -c "npm ci && npm run css:watch"
+    command: ["sh", "docker/tailwind-dev.sh"]
 
 volumes:
   dev_node_modules:

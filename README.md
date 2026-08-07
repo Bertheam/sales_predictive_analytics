@@ -1085,7 +1085,9 @@ npm run css:build
 
 `backend/static/css/tailwind.css` est un artefact généré et n'est pas versionné.
 Il ne doit donc pas être ajouté manuellement à Git. En développement Docker,
-le service `tailwind` le régénère dès le démarrage et le maintient à jour.
+le service `tailwind` le régénère dès le démarrage et le maintient à jour. Il
+reconstruit également le fichier s'il disparaît pendant un changement de
+branche, un rebase ou un nettoyage du répertoire de travail.
 
 En Docker, cette compilation est réalisée automatiquement dans une étape Node
 séparée du `Dockerfile`; Node.js n’est pas conservé dans l’image Python finale.
