@@ -11,3 +11,4 @@ node_modules/
 *.dump
 backups/
 outputs/
+.tmp_presentation/

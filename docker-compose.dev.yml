@@ -1,0 +1,48 @@
+services:
+  web:
+    entrypoint: ["sh", "/app/docker/entrypoint.sh"]
+    environment:
+      DJANGO_DEBUG: "true"
+    volumes:
+      - .:/app
+    depends_on:
+      tailwind:
+        condition: service_started
+    command: >
+      sh -c "python backend/manage.py migrate --noinput &&
+      python -m alembic upgrade head &&
+      python backend/manage.py runserver 0.0.0.0:8000"
+
+  app:
+    entrypoint: ["sh", "/app/docker/entrypoint.sh"]
+    volumes:
+      - .:/app
+    command: >
+      sh -c "python -m streamlit run app/main.py
+      --server.address=0.0.0.0
+      --server.port=8501
+      --server.runOnSave=true
+      --server.fileWatcherType=poll"
+
+  worker:
+    entrypoint: ["sh", "/app/docker/entrypoint.sh"]
+    volumes:
+      - .:/app
+
+  beat:
+    entrypoint: ["sh", "/app/docker/entrypoint.sh"]
+    volumes:
+      - .:/app
+
+  tailwind:
+    image: node:22-slim
+    container_name: tailwind
+    working_dir: /workspace
+    restart: unless-stopped
+    volumes:
+      - .:/workspace
+      - dev_node_modules:/workspace/node_modules
+    command: sh -c "npm ci && npm run css:watch"
+
+volumes:
+  dev_node_modules:

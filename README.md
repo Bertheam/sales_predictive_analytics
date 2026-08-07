@@ -376,6 +376,61 @@ Reconstruire l'application après une modification des dépendances ou du code :
 docker compose up -d --build web app worker beat
 ```
 
+### 6. Développement Docker avec rechargement automatique
+
+Le fichier `docker-compose.yml` reste volontairement proche de la production :
+le code est intégré à l'image et doit être reconstruit après une modification.
+
+Pour travailler quotidiennement sans reconstruire les conteneurs, utilisez la
+surcharge de développement :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+Le premier lancement construit l'image Python et installe les dépendances Node.
+Ensuite, les dossiers du projet sont montés directement dans les conteneurs :
+
+```text
+Modification Python ou template Django  → rechargement automatique de Django
+Modification Streamlit                  → rechargement automatique de Streamlit
+Modification des classes Tailwind       → recompilation automatique du CSS
+Modification JavaScript ou CSS existant → visible après actualisation du navigateur
+```
+
+Il n'est donc plus nécessaire de relancer `docker compose up --build` après
+chaque modification d'interface.
+
+Voir les journaux utiles pendant le développement :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f web app tailwind
+```
+
+Arrêter le mode développement sans supprimer PostgreSQL ni Redis :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+```
+
+Les processus Celery ne se rechargent pas automatiquement. Après une
+modification d'une tâche ou de sa planification, redémarrez uniquement :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml restart worker beat
+```
+
+Une reconstruction reste nécessaire seulement après une modification de
+`Dockerfile`, `requirements.txt`, `package.json` ou `package-lock.json` :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+Cette surcharge est strictement locale. Railway continue d'utiliser le
+`Dockerfile` et ne lance ni le serveur Django de développement ni le watcher
+Tailwind.
+
 Vérifier que Celery répond :
 
 ```bash

@@ -27,3 +27,5 @@ backups/
 backend/db.sqlite3
 staticfiles/
 node_modules/
+.tmp_presentation/
+outputs/
