@@ -27,5 +27,6 @@ backups/
 backend/db.sqlite3
 staticfiles/
 node_modules/
+backend/static/css/tailwind.css
 .tmp_presentation/
 outputs/

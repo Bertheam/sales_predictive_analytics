@@ -7,6 +7,7 @@ venv/
 backend/db.sqlite3
 staticfiles/
 node_modules/
+backend/static/css/tailwind.css
 *.backup
 *.dump
 backups/
