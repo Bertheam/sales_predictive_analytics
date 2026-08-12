@@ -117,7 +117,9 @@ class ForecastJobPageTests(TestCase):
         self.assertContains(
             response, "Les ventes de ce produit doivent être mises à jour"
         )
+        self.assertContains(response, "6 jours de retard")
         self.assertContains(response, 'id="product-freshness-data"')
+        self.assertContains(response, "data-forecast-form")
 
     @patch("forecasting.forms.product_choices", return_value=[])
     def test_technical_metrics_are_hidden_in_details(self, _choices):

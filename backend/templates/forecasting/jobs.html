@@ -21,7 +21,7 @@
       <div><span class="eyebrow">Nouvelle prévision</span><h2>Quel produit voulez-vous anticiper ?</h2><p>Choisissez simplement le produit. NexaStock calcule le reste.</p></div>
       {% if can_generate %}
         {% if form.fields.product_id.choices %}
-          <form method="post" class="simple-task-form" data-submit-lock>{% csrf_token %}
+          <form method="post" class="simple-task-form" data-submit-lock data-forecast-form>{% csrf_token %}
             <div class="form-field"><label for="{{ form.product_id.id_for_label }}">Produit</label>{{ form.product_id }}{% for error in form.product_id.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
             <div class="hidden">{{ form.horizon }}</div>
             <button class="ui-button ui-button--primary" type="submit" data-forecast-submit aria-describedby="product-freshness-status">Préparer la prévision</button>

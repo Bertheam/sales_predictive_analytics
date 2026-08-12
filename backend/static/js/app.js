@@ -66,13 +66,16 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (_error) {
       freshnessByProduct = {};
     }
+    let selectedFreshness = null;
     const refreshProductFreshness = () => {
       const freshness = freshnessByProduct[forecastProduct.value] || {
         state: "missing",
         title: "Choisissez un produit",
         description: "Sa dernière vente sera vérifiée avant le calcul.",
         action_label: "Voir les ventes",
+        blocking_message: "Choisissez d’abord un produit à prévoir.",
       };
+      selectedFreshness = freshness;
       productFreshness.dataset.state = freshness.state;
       productFreshness.classList.toggle("is-stale", freshness.state !== "current");
       productFreshness.querySelector("[data-freshness-title]").textContent = freshness.title;
@@ -80,11 +83,24 @@ document.addEventListener("DOMContentLoaded", () => {
       const action = productFreshness.querySelector("[data-freshness-action]");
       action.textContent = freshness.action_label || "Voir les ventes";
       action.hidden = freshness.state === "current";
-      const submit = document.querySelector("[data-forecast-submit]");
-      if (submit) {
-        submit.disabled = freshness.state !== "current";
-      }
     };
+    const forecastForm = document.querySelector("[data-forecast-form]");
+    forecastForm?.addEventListener("submit", (event) => {
+      if (selectedFreshness?.state === "current") return;
+      event.preventDefault();
+      const message = selectedFreshness?.blocking_message || "Mettez à jour les ventes de ce produit avant de préparer une prévision.";
+      if (!window.Swal) {
+        window.alert(message);
+        return;
+      }
+      window.Swal.fire({
+        icon: "warning",
+        title: "Ventes à mettre à jour",
+        text: message,
+        confirmButtonText: "D’accord",
+        customClass: { confirmButton: "swal-confirm" },
+      });
+    });
     forecastProduct.addEventListener("change", refreshProductFreshness);
     if (window.jQuery?.fn?.select2) {
       window.jQuery(forecastProduct).on("select2:select", refreshProductFreshness);

@@ -45,6 +45,7 @@ def _freshness_presentation(freshness):
             "title": "Choisissez un produit",
             "description": "Sa dernière vente sera vérifiée avant le calcul.",
             "action_label": "Voir les ventes",
+            "blocking_message": "Choisissez d’abord un produit à prévoir.",
         }
     last_sale_date = freshness.get("last_sale_date")
     if last_sale_date is None:
@@ -53,6 +54,7 @@ def _freshness_presentation(freshness):
             "title": "Aucune vente pour ce produit",
             "description": "Enregistrez quelques ventes avant de préparer une prévision.",
             "action_label": "Ajouter des ventes",
+            "blocking_message": _freshness_error(freshness),
         }
     date_label = last_sale_date.strftime("%d/%m/%Y")
     if freshness["age_days"] > settings.FORECAST_MAX_DATA_AGE_DAYS:
@@ -61,12 +63,14 @@ def _freshness_presentation(freshness):
             "title": "Les ventes de ce produit doivent être mises à jour",
             "description": f"Dernière vente enregistrée le {date_label}.",
             "action_label": "Mettre à jour",
+            "blocking_message": _freshness_error(freshness),
         }
     return {
         "state": "current",
         "title": "Ce produit est prêt pour la prévision",
         "description": f"Dernière vente enregistrée le {date_label}.",
         "action_label": "",
+        "blocking_message": "",
     }
 
 
