@@ -8,7 +8,7 @@ backend/db.sqlite3
 staticfiles/
 node_modules/
 backend/static/css/tailwind.css
-backend/static/vendor/lucide/lucide.min.js
+backend/static/vendor/lucide/
 *.backup
 *.dump
 backups/

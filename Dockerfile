@@ -32,7 +32,7 @@ RUN useradd --create-home --shell /bin/bash appuser
 
 COPY --chown=appuser:appuser . .
 COPY --from=frontend --chown=appuser:appuser /build/backend/static/css/tailwind.css /app/backend/static/css/tailwind.css
-COPY --from=frontend --chown=appuser:appuser /build/backend/static/vendor/lucide/lucide.min.js /app/backend/static/vendor/lucide/lucide.min.js
+COPY --from=frontend --chown=appuser:appuser /build/backend/static/vendor/lucide/ /app/backend/static/vendor/lucide/
 RUN mkdir -p /app/staticfiles \
     && chown appuser:appuser /app/staticfiles \
     && chmod +x /app/docker/entrypoint.sh

@@ -4,7 +4,7 @@
   "scripts": {
     "css:build": "tailwindcss -i ./backend/static/src/tailwind.css -o ./backend/static/css/tailwind.css --minify",
     "css:watch": "tailwindcss -i ./backend/static/src/tailwind.css -o ./backend/static/css/tailwind.css --watch=always",
-    "icons:build": "mkdir -p ./backend/static/vendor/lucide && cp ./node_modules/lucide/dist/umd/lucide.min.js ./backend/static/vendor/lucide/lucide.min.js",
+    "icons:build": "mkdir -p ./backend/static/vendor/lucide && cp ./node_modules/lucide/dist/umd/lucide.min.js ./node_modules/lucide/dist/umd/lucide.min.js.map ./backend/static/vendor/lucide/",
     "assets:build": "npm run css:build && npm run icons:build"
   },
   "devDependencies": {
