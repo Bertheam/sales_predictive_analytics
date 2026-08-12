@@ -1,0 +1,5 @@
+<nav class="procurement-tabs" aria-label="Étapes de l’approvisionnement">
+  <a href="{% url 'decisions:center' %}"{% if active_tab == 'recommendations' %} class="active" aria-current="page"{% endif %}><span>1</span><b>Recommandations</b><small>Ce que NexaStock conseille</small></a>
+  <a href="{% url 'decisions:orders' %}"{% if active_tab == 'orders' %} class="active" aria-current="page"{% endif %}><span>2</span><b>Commandes</b><small>{{ open_order_count }} en cours{% if prepared_count %} · {{ prepared_count }} plan{{ prepared_count|pluralize }} prêt{{ prepared_count|pluralize }}{% endif %}</small></a>
+  <a href="{% url 'decisions:receipts' %}"{% if active_tab == 'receipts' %} class="active" aria-current="page"{% endif %}><span>3</span><b>Réceptions</b><small>Ce qui entre réellement en stock</small></a>
+</nav>

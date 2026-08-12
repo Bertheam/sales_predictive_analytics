@@ -1,78 +1,79 @@
 {% extends "base_app.html" %}
-{% block title %}Vue d’ensemble · NexaStock{% endblock %}
+{% block title %}Accueil · NexaStock{% endblock %}
 {% block content %}
-  <section class="page-heading">
+  <section class="page-heading calm-page-heading">
     <div>
-      <span class="eyebrow">Maintenant</span>
-      <h1>Bonjour {{ request.user.full_name|default:request.user.email|truncatewords:1 }}.</h1>
-      <p>Voici ce qu’il faut savoir et faire pour <strong>{{ active_company.name }}</strong>.</p>
+      <h1>Bonjour {{ request.user.full_name|default:request.user.login_identifier }}</h1>
+      <p>{{ active_company.name }} · situation des 7 derniers jours</p>
     </div>
-    <div class="date-chip">
-      7 derniers jours · {{ snapshot.start_date|date:"d/m/Y" }} → {{ snapshot.end_date|date:"d/m/Y" }}<br>
-      {% if snapshot.last_updated_at %}Mise à jour {{ snapshot.last_updated_at|date:"d/m/Y à H:i" }}{% else %}Aucune donnée mise à jour{% endif %}
-    </div>
-  </section>
-  <section class="welcome-banner overview-banner">
-    <div>
-      {% if not snapshot.company_configured %}<span class="pill">NOUVEL ESPACE</span>{% else %}<span class="pill">POINT DE SITUATION</span>{% endif %}
-      <h2>{% if snapshot.risk_products %}{{ snapshot.risk_products }} produit{{ snapshot.risk_products|pluralize }} demande{{ snapshot.risk_products|pluralize }} votre attention.{% else %}Votre activité est sous contrôle.{% endif %}</h2>
-      <p>Les indicateurs ci-dessous couvrent uniquement les sept derniers jours et votre dépôt actif. Ouvrez une carte pour agir.</p>
-      <div class="button-row">
-        <a class="primary-button inline-button" href="{% url 'dashboard:activity' %}">Analyser l’activité</a>
-        <a class="text-button" href="{% url 'decisions:center' %}">Voir les priorités de réapprovisionnement →</a>
-      </div>
-    </div>
-    <div class="forecast-orbit"><span>7 j</span><i></i><b>Période active</b></div>
+    <a class="quiet-link" href="{% url 'dashboard:activity' %}">Voir l’analyse détaillée <i data-lucide="arrow-right" class="ui-icon" aria-hidden="true"></i></a>
   </section>
 
-  <section class="metric-grid" aria-label="Indicateurs des sept derniers jours">
-    <a class="metric-card metric-card-link" href="{% url 'operations:sales' %}">
-      <span class="metric-icon green">↗</span><small>Chiffre d’affaires · 7 jours</small>
-      <strong>{{ snapshot.revenue|floatformat:"0g" }} {{ active_company.currency }}</strong>
-      <p class="metric-change{% if snapshot.revenue_change > 0 %} positive{% elif snapshot.revenue_change < 0 %} negative{% endif %}">
-        {% if snapshot.revenue_change is None %}Pas de période comparable{% elif snapshot.revenue_change > 0 %}↑ {{ snapshot.revenue_change }} %{% elif snapshot.revenue_change < 0 %}↓ {{ snapshot.revenue_change|stringformat:"s"|cut:"-" }} %{% else %}→ 0 %{% endif %} vs 7 jours précédents
-      </p>
+  <section class="daily-focus{% if snapshot.risk_products %} needs-attention{% endif %}">
+    <div class="daily-focus__icon" aria-hidden="true"><i data-lucide="{% if snapshot.risk_products %}triangle-alert{% else %}circle-check{% endif %}" class="ui-icon"></i></div>
+    <div class="daily-focus__copy">
+      <span class="eyebrow">L’essentiel</span>
+      {% if not snapshot.company_configured %}
+        <h2>Terminons la mise en place du dépôt.</h2>
+        <p>Ajoutez vos produits, votre stock puis une première vente.</p>
+      {% elif snapshot.risk_products %}
+        <h2>{{ snapshot.risk_products }} produit{{ snapshot.risk_products|pluralize }} à vérifier.</h2>
+        <p>Le stock pourrait être insuffisant. NexaStock a préparé les quantités conseillées.</p>
+      {% else %}
+        <h2>Aucune urgence détectée.</h2>
+        <p>Votre stock connu couvre les besoins identifiés pour le moment.</p>
+      {% endif %}
+    </div>
+    {% if not snapshot.company_configured %}
+      <a class="ui-button ui-button--primary" href="#demarrage">Continuer</a>
+    {% elif snapshot.risk_products %}
+      <a class="ui-button ui-button--primary" href="{% url 'decisions:center' %}">Voir quoi commander</a>
+    {% else %}
+      <a class="ui-button ui-button--ghost" href="{% url 'decisions:center' %}">Vérifier les stocks</a>
+    {% endif %}
+  </section>
+
+  <section class="essential-metrics" aria-label="Chiffres essentiels">
+    <a href="{% url 'operations:sales' %}">
+      <small>Ventes · 7 jours</small>
+      <strong>{{ snapshot.revenue|floatformat:"0g" }} <em>{{ active_company.currency }}</em></strong>
+      <span>{{ snapshot.sales_count }} transaction{{ snapshot.sales_count|pluralize }}</span>
     </a>
-    <a class="metric-card metric-card-link" href="{% url 'operations:stocks' %}">
-      <span class="metric-icon blue">▦</span><small>Stock disponible</small>
-      <strong>{{ snapshot.current_stock|floatformat:"0g" }}</strong>
-      <p class="metric-change{% if snapshot.stock_change > 0 %} positive{% elif snapshot.stock_change < 0 %} negative{% endif %}">
-        {% if snapshot.stock_change is None %}Pas de stock antérieur comparable{% elif snapshot.stock_change > 0 %}↑ {{ snapshot.stock_change }} %{% elif snapshot.stock_change < 0 %}↓ {{ snapshot.stock_change|stringformat:"s"|cut:"-" }} %{% else %}→ 0 %{% endif %} vs situation précédente
-      </p>
+    <a href="{% url 'operations:stocks' %}">
+      <small>Stock disponible</small>
+      <strong>{{ snapshot.current_stock|floatformat:"0g" }} <em>colis</em></strong>
+      <span>{{ snapshot.active_products }} produit{{ snapshot.active_products|pluralize }} actif{{ snapshot.active_products|pluralize }}</span>
     </a>
-    <a class="metric-card metric-card-link" href="{% url 'decisions:center' %}">
-      <span class="metric-icon amber">!</span><small>Produits à risque</small>
-      <strong>{{ snapshot.risk_products }}</strong>
-      <p>Rupture ou seuil minimum atteint · ouvrir le réapprovisionnement</p>
-    </a>
-    <a class="metric-card metric-card-link accent" href="{% url 'operations:sales' %}">
-      <span class="metric-icon violet">◈</span><small>Quantité vendue · 7 jours</small>
-      <strong>{{ snapshot.quantity_sold|floatformat:"0g" }}</strong>
-      <p class="metric-change{% if snapshot.quantity_change > 0 %} positive{% elif snapshot.quantity_change < 0 %} negative{% endif %}">
-        {% if snapshot.quantity_change is None %}Pas de période comparable{% elif snapshot.quantity_change > 0 %}↑ {{ snapshot.quantity_change }} %{% elif snapshot.quantity_change < 0 %}↓ {{ snapshot.quantity_change|stringformat:"s"|cut:"-" }} %{% else %}→ 0 %{% endif %} vs 7 jours précédents
-      </p>
+    <a href="{% url 'decisions:center' %}" class="{% if snapshot.risk_products %}is-warning{% endif %}">
+      <small>À surveiller</small>
+      <strong>{{ snapshot.risk_products }} <em>produit{{ snapshot.risk_products|pluralize }}</em></strong>
+      <span>{% if snapshot.risk_products %}Une action peut être nécessaire{% else %}Tout va bien pour le moment{% endif %}</span>
     </a>
   </section>
 
-  <section class="dashboard-grid" id="demarrage">
-    <article class="panel setup-panel">
-      <div class="panel-heading"><div><span class="eyebrow">Progression réelle</span><h2>Configuration du dépôt</h2></div><span class="progress-label">{{ snapshot.setup_completed }} / 3</span></div>
+  <section class="quick-actions" aria-label="Actions rapides">
+    <span>Actions rapides</span>
+    <div>
+      {% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a class="quick-action quick-action--sale" href="{% url 'operations:sale-create' %}"><b><i data-lucide="shopping-cart" class="ui-icon" aria-hidden="true"></i></b> Enregistrer une vente</a>{% endif %}
+      {% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a class="quick-action quick-action--receipt" href="{% url 'operations:receipt-create' %}"><b><i data-lucide="package-plus" class="ui-icon" aria-hidden="true"></i></b> Réceptionner du stock</a>{% endif %}
+      {% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a class="quick-action quick-action--order" href="{% url 'decisions:manual-order-create' %}"><b><i data-lucide="clipboard-list" class="ui-icon" aria-hidden="true"></i></b> Créer une commande</a>{% endif %}
+      <a class="quick-action quick-action--forecast" href="{% url 'forecasting:jobs' %}"><b><i data-lucide="chart-no-axes-combined" class="ui-icon" aria-hidden="true"></i></b> Préparer une prévision</a>
+    </div>
+  </section>
+
+  {% if not snapshot.company_configured %}
+    <section class="panel compact-setup" id="demarrage">
+      <div class="panel-heading"><div><span class="eyebrow">Premiers pas</span><h2>Préparez votre dépôt</h2></div><span class="progress-label">{{ snapshot.setup_completed }} / 3</span></div>
       <div class="progress-track"><i style="width:{{ snapshot.setup_percent }}%"></i></div>
       <ol class="setup-list">
         {% for step in snapshot.setup_steps %}
           <li class="{% if step.complete %}complete{% endif %}">
-            <span>{% if step.complete %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
-            <div><strong>{{ step.label }}</strong><p>{% if step.complete %}Étape terminée pour ce dépôt.{% else %}Cette étape est encore nécessaire.{% endif %}</p></div>
-            {% if forloop.counter == 1 %}<a href="{% url 'companies:edit' active_company.id %}">→</a>{% elif forloop.counter == 2 %}<a href="{% url 'operations:products' %}">→</a>{% else %}<a href="{% url 'operations:sales' %}">→</a>{% endif %}
+            <span>{% if step.complete %}<i data-lucide="check" class="ui-icon" aria-hidden="true"></i>{% else %}{{ forloop.counter }}{% endif %}</span>
+            <div><strong>{{ step.label }}</strong></div>
+            {% if forloop.counter == 1 %}<a href="{% url 'companies:edit' active_company.id %}">Continuer <i data-lucide="arrow-right" class="ui-icon" aria-hidden="true"></i></a>{% elif forloop.counter == 2 %}<a href="{% url 'operations:products' %}">Continuer <i data-lucide="arrow-right" class="ui-icon" aria-hidden="true"></i></a>{% else %}<a href="{% url 'operations:sales' %}">Continuer <i data-lucide="arrow-right" class="ui-icon" aria-hidden="true"></i></a>{% endif %}
           </li>
         {% endfor %}
       </ol>
-    </article>
-    <article class="panel insight-panel">
-      <span class="eyebrow light">Décision immédiate</span><h2>Concentrez-vous sur l’essentiel.</h2>
-      <p>{{ snapshot.sales_count }} transaction{{ snapshot.sales_count|pluralize }} sur la période. Consultez les tendances détaillées ou préparez les réapprovisionnements prioritaires.</p>
-      <div class="insight-stats"><div><strong>{{ snapshot.sales_count }}</strong><span>Transactions sur 7 jours</span></div><div><strong>{{ snapshot.active_products }}</strong><span>Produits actifs</span></div></div>
-      <a href="{% url 'dashboard:activity' %}">Ouvrir le tableau de bord <span>→</span></a>
-    </article>
-  </section>
+    </section>
+  {% endif %}
 {% endblock %}

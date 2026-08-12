@@ -6,7 +6,8 @@ Les propriétaires et administrateurs d'un dépôt peuvent :
 
 - créer, modifier, archiver et restaurer les clients ;
 - créer, modifier, archiver et restaurer les fournisseurs ;
-- créer une vente contenant jusqu'à 20 produits ;
+- créer une vente contenant jusqu'à 20 produits, avec une seule ligne affichée
+  au départ puis un bouton d'ajout ;
 - enregistrer une réception fournisseur contenant jusqu'à 20 produits ;
 - créer un ajustement, une casse, une perte ou un retour de stock ;
 - modifier les informations administratives d'une vente ou d'une réception ;

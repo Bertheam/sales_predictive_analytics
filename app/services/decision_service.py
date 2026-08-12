@@ -47,9 +47,20 @@ class DecisionService:
 
         for row in self.repository.get_latest_product_forecasts():
             predicted_quantity = float(row.get("predicted_p50") or row["predicted_quantity"])
-            p80_quantity = float(row.get("predicted_p80") or predicted_quantity)
-            p90_quantity = float(row.get("predicted_p90") or p80_quantity)
-            uncertainty_buffer = max(0.0, p90_quantity - predicted_quantity)
+            legacy_p80 = float(row.get("predicted_p80") or predicted_quantity)
+            legacy_p90 = float(row.get("predicted_p90") or legacy_p80)
+            p80_buffer = float(
+                row.get("p80_safety_buffer")
+                if row.get("p80_safety_buffer") is not None
+                else max(0.0, legacy_p80 - predicted_quantity)
+            )
+            uncertainty_buffer = float(
+                row.get("p90_safety_buffer")
+                if row.get("p90_safety_buffer") is not None
+                else max(0.0, legacy_p90 - predicted_quantity)
+            )
+            p80_quantity = predicted_quantity + p80_buffer
+            p90_quantity = predicted_quantity + uncertainty_buffer
             safety_stock = float(row.get("minimum_stock") or 0)
             upper_quantity = p90_quantity + safety_stock
             current_stock = float(row["current_stock"])

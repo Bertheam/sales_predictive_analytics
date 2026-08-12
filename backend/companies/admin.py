@@ -14,14 +14,14 @@ class CompanyAdmin(admin.ModelAdmin):
 class MembershipAdmin(admin.ModelAdmin):
     list_display = ("user", "company", "role", "status", "joined_at")
     list_filter = ("role", "status")
-    search_fields = ("user__email", "user__full_name", "company__name")
+    search_fields = ("user__email", "user__phone", "user__full_name", "company__name")
 
 
 @admin.register(CompanyInvitation)
 class CompanyInvitationAdmin(admin.ModelAdmin):
-    list_display = ("email", "company", "role", "status", "email_status", "email_attempts", "expires_at", "created_at")
-    list_filter = ("role", "status", "email_status")
-    search_fields = ("email", "company__name")
+    list_display = ("recipient", "channel", "company", "role", "status", "email_status", "email_attempts", "expires_at", "created_at")
+    list_filter = ("channel", "role", "status", "email_status")
+    search_fields = ("email", "phone", "company__name")
     readonly_fields = (
         "token_hash", "invited_by", "accepted_by", "accepted_at", "email_attempts",
         "email_queued_at", "email_sent_at", "email_failed_at", "email_error",

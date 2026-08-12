@@ -3,12 +3,16 @@ from decimal import Decimal
 from uuid import uuid4
 from unittest.mock import patch
 
+import pandas as pd
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import User
+from audit.models import AuditLog
 from companies.models import Company, Membership
 from .forms import CustomerForm, ProductForm, SupplierForm
+from .models import PendingDataImport
 
 
 class OperationAccessTests(TestCase):
@@ -139,6 +143,24 @@ class OperationAccessTests(TestCase):
             with self.subTest(route=route):
                 self.assertEqual(self.client.get(reverse(route)).status_code, 200)
 
+    def test_new_sale_starts_with_one_line_and_an_add_product_button(self):
+        response = self.client.get(reverse("operations:sale-create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["items"].total_form_count(), 1)
+        self.assertContains(response, "Ajouter un produit")
+        self.assertContains(response, "data-dynamic-formset")
+        self.assertContains(response, "data-remove-form-row")
+
+    def test_new_receipt_starts_with_one_dynamic_product_line(self):
+        response = self.client.get(reverse("operations:receipt-create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["items"].total_form_count(), 1)
+        self.assertContains(response, "Ajouter un produit")
+        self.assertContains(response, "data-dynamic-formset")
+        self.assertContains(response, "data-remove-form-row")
+
     def test_viewer_cannot_create_stock_or_sale_operations(self):
         self.membership.role = Membership.Role.VIEWER
         self.membership.save(update_fields=["role"])
@@ -199,3 +221,150 @@ class OperationAccessTests(TestCase):
         self.assertContains(response, "aria-sort=\"descending\"")
         self.assertContains(response, "VTE-000001")
         self.assertNotContains(response, "VTE-000030")
+
+
+class DataImportWorkflowTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="import@example.com",
+            password="A-secure-password-2026",
+            full_name="Responsable Import",
+        )
+        self.company = Company.objects.create(code="import", name="Dépôt Import")
+        self.membership = Membership.objects.create(
+            user=self.user,
+            company=self.company,
+            role=Membership.Role.ADMIN,
+            status=Membership.Status.ACTIVE,
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session["active_company_id"] = str(self.company.pk)
+        session.save()
+
+    @staticmethod
+    def _analysis():
+        return {
+            "file_name": "ventes.xlsx",
+            "file_type": "XLSX",
+            "file_hash": "a" * 64,
+            "import_type": "SALES",
+            "total_rows": 2,
+            "valid_rows": [{"sale_reference": "FACT-1"}],
+            "invalid_rows": [
+                {"_row_number": 3, "_errors": ["Produit inconnu"]}
+            ],
+            "duplicate_rows": [],
+            "preview": pd.DataFrame(
+                [
+                    {"Ligne": 2, "Statut": "Valide", "sale_reference": "FACT-1"},
+                    {"Ligne": 3, "Statut": "Invalide", "sale_reference": "FACT-2"},
+                ]
+            ),
+            "already_imported": False,
+        }
+
+    @patch("operations.views.DataImportService")
+    @patch("operations.views.session_for_company")
+    def test_import_page_uses_a_guided_modal_and_keeps_history_visible(self, session, service):
+        session.return_value.__enter__.return_value = object()
+        service.return_value.get_history.return_value = []
+
+        response = self.client.get(reverse("operations:data-import"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Historique des imports")
+        self.assertContains(response, "Nouvel import")
+        self.assertContains(response, "Assistant d’import")
+        self.assertContains(response, 'data-import-wizard')
+        self.assertContains(response, "Vérifier le fichier")
+        self.assertContains(response, 'href="/import-excel/"')
+
+    @patch("operations.views.DataImportService")
+    @patch("operations.views.session_for_company")
+    def test_template_download_returns_xlsx(self, session, service):
+        session.return_value.__enter__.return_value = object()
+        service.return_value.get_template.return_value = b"xlsx-content"
+
+        response = self.client.get(
+            reverse("operations:data-import-template", args=["SALES"])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"xlsx-content")
+        self.assertIn("modele_ventes.xlsx", response["Content-Disposition"])
+        service.return_value.get_template.assert_called_once_with("SALES", "XLSX")
+
+    @patch("operations.views.DataImportService")
+    @patch("operations.views.session_for_company")
+    def test_upload_is_analyzed_before_any_import(self, session, service):
+        session.return_value.__enter__.return_value = object()
+        service.return_value.get_history.return_value = []
+        service.return_value.analyze_file.return_value = self._analysis()
+        upload = SimpleUploadedFile(
+            "ventes.xlsx",
+            b"temporary-excel-content",
+            content_type=(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ),
+        )
+
+        response = self.client.post(
+            reverse("operations:data-import"),
+            {"import_type": "SALES", "excel_file": upload},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Vérification terminée")
+        self.assertContains(response, "Ajouter uniquement les lignes prêtes")
+        self.assertEqual(PendingDataImport.objects.count(), 1)
+        service.return_value.execute_import.assert_not_called()
+
+    @patch("operations.views.DataImportService")
+    @patch("operations.views.session_for_company")
+    def test_confirmation_executes_import_and_writes_audit_log(self, session, service):
+        session.return_value.__enter__.return_value = object()
+        pending = PendingDataImport.objects.create(
+            company=self.company,
+            created_by=self.user,
+            import_type="SALES",
+            original_name="ventes.xlsx",
+            content=b"temporary-excel-content",
+            file_hash="a" * 64,
+        )
+        analysis = self._analysis()
+        service.return_value.analyze_file.return_value = analysis
+        service.return_value.execute_import.return_value = {
+            "batch_id": uuid4(),
+            "batch_number": "IMP-20260809-TEST",
+            "imported_rows": 1,
+            "invalid_rows": 1,
+            "duplicate_rows": 0,
+        }
+
+        response = self.client.post(
+            reverse("operations:data-import-confirm", args=[pending.id]),
+            {"import_valid_only": "1"},
+        )
+
+        self.assertRedirects(response, reverse("operations:data-import"))
+        self.assertFalse(PendingDataImport.objects.filter(id=pending.id).exists())
+        service.return_value.execute_import.assert_called_once_with(
+            analysis, import_valid_only=True
+        )
+        self.assertTrue(
+            AuditLog.objects.filter(
+                company=self.company,
+                actor=self.user,
+                action=AuditLog.Action.IMPORT,
+            ).exists()
+        )
+
+    @patch("operations.views.DataImportService")
+    @patch("operations.views.session_for_company")
+    def test_viewer_cannot_access_import_workflow(self, session, service):
+        self.membership.role = Membership.Role.VIEWER
+        self.membership.save(update_fields=["role"])
+        response = self.client.get(reverse("operations:data-import"))
+        self.assertEqual(response.status_code, 403)
+        session.assert_not_called()

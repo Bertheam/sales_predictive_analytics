@@ -5,9 +5,9 @@
   {% include "components/page_header.html" with back_href=dashboard_url back_label="Retour au tableau de bord" eyebrow="Compte" title="Mon profil" subtitle="Gérez les informations utilisées pour votre compte NexaStock." only %}
   <div class="profile-layout grid grid-cols-1 gap-5 lg:grid-cols-[minmax(230px,.55fr)_minmax(0,1.45fr)]">
     <aside class="panel profile-card">
-      <span class="profile-avatar">{{ request.user.full_name|default:request.user.email|first|upper }}</span>
-      <h2>{{ request.user.full_name|default:request.user.email }}</h2>
-      <p>{{ request.user.email }}</p>
+      <span class="profile-avatar">{{ request.user.full_name|default:request.user.login_identifier|first|upper }}</span>
+      <h2>{{ request.user.full_name|default:request.user.login_identifier }}</h2>
+      <p>{{ request.user.login_identifier }}</p>
       {% if active_membership %}<span class="status-badge success">{{ active_membership.get_role_display }}</span>{% endif %}
     </aside>
     <form method="post" class="panel profile-form">

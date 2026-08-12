@@ -26,6 +26,11 @@ def send_company_invitation(self, invitation_id, raw_token, accept_url):
     if invitation is None:
         return {"status": "missing"}
     if (
+        invitation.channel != CompanyInvitation.Channel.EMAIL
+        or not invitation.email
+    ):
+        return {"status": "skipped", "reason": "non_email_invitation"}
+    if (
         invitation.status != CompanyInvitation.Status.PENDING
         or invitation.token_hash != hash_invitation_token(raw_token)
     ):
@@ -80,6 +85,11 @@ def send_company_invitation(self, invitation_id, raw_token, accept_url):
 
 def queue_company_invitation_email(*, invitation, raw_token, accept_url):
     """Queue an invitation without turning a broker outage into an HTTP 500."""
+    if (
+        invitation.channel != CompanyInvitation.Channel.EMAIL
+        or not invitation.email
+    ):
+        return False
     now = timezone.now()
     CompanyInvitation.objects.filter(pk=invitation.pk).update(
         email_status=CompanyInvitation.EmailStatus.QUEUED,

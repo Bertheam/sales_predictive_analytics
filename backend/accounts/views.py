@@ -21,7 +21,11 @@ def register(request):
 
 @login_required
 def profile(request):
-    previous = {"full_name": request.user.full_name, "email": request.user.email}
+    previous = {
+        "full_name": request.user.full_name,
+        "email": request.user.email,
+        "phone": request.user.phone,
+    }
     form = ProfileForm(request.POST or None, instance=request.user)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -33,7 +37,7 @@ def profile(request):
             description="Modification du profil utilisateur.",
             metadata={
                 "changed_fields": [
-                    field for field in ("full_name", "email")
+                    field for field in ("full_name", "email", "phone")
                     if previous[field] != form.cleaned_data[field]
                 ]
             },

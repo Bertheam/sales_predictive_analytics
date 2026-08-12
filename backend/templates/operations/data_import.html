@@ -1,0 +1,160 @@
+{% extends "base_app.html" %}
+{% load listing_tags %}
+{% block title %}Imports Excel · NexaStock{% endblock %}
+{% block content %}
+<section class="page-heading calm-page-heading action-heading flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+  <div>
+    <span class="eyebrow">Données du dépôt</span>
+    <h1>Imports Excel</h1>
+    <p>Retrouvez les fichiers déjà traités et leurs résultats.</p>
+  </div>
+  <button type="button" class="ui-button ui-button--primary inline-button" data-import-open>
+    <i data-lucide="file-plus-2" class="ui-icon" aria-hidden="true"></i>
+    Nouvel import
+  </button>
+</section>
+
+<section class="panel data-panel import-history-panel">
+  <div class="panel-heading">
+    <div><span class="eyebrow">Suivi</span><h2>Historique des imports</h2><p>{{ history|length }} import{{ history|length|pluralize }} récent{{ history|length|pluralize }}</p></div>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Date</th><th>Fichier</th><th>Contenu</th><th>Ajoutées</th><th>Ignorées</th><th>Statut</th><th><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {% for batch in history %}
+          <tr>
+            <td>{{ batch.created_at|date:"d/m/Y H:i" }}</td>
+            <td><strong>{{ batch.file_name }}</strong><small>{{ batch.batch_number }}</small></td>
+            <td>{{ batch.import_label }}</td>
+            <td>{{ batch.valid_rows }}</td>
+            <td>{{ batch.invalid_rows|add:batch.duplicate_rows }}</td>
+            <td><span class="status-badge {{ batch.status|status_variant }}">{{ batch.status|status_label }}</span></td>
+            <td>{% if batch.recorded_errors %}<a class="row-action" href="?batch={{ batch.id }}#erreurs-import">Voir les erreurs</a>{% endif %}</td>
+          </tr>
+        {% empty %}<tr><td colspan="7">{% include "components/empty_state.html" with icon="file-spreadsheet" title="Aucun import" description="Cliquez sur Nouvel import pour ajouter votre premier fichier Excel." only %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if batch_errors %}
+    <div class="import-batch-errors" id="erreurs-import">
+      <div class="import-batch-errors__heading"><div><span class="eyebrow">À corriger</span><h3>Erreurs enregistrées</h3></div><a href="{% url 'operations:data-import' %}" class="icon-button" aria-label="Fermer le détail" title="Fermer le détail"><i data-lucide="x" class="ui-icon" aria-hidden="true"></i></a></div>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Ligne Excel</th><th>Problème détecté</th></tr></thead><tbody>
+        {% for error in batch_errors %}<tr><td><strong>{{ error.source_row_number }}</strong></td><td class="import-error-list">{{ error.error_messages|join:" · " }}</td></tr>{% endfor %}
+      </tbody></table></div>
+    </div>
+  {% endif %}
+</section>
+
+<dialog class="import-wizard" data-import-wizard data-start-step="{% if analysis %}3{% elif form.errors %}2{% else %}1{% endif %}"{% if analysis or form.errors %} data-auto-open="true"{% endif %} aria-labelledby="import-wizard-title">
+  <div class="import-wizard__shell">
+    <header class="import-wizard__header">
+      <div class="import-wizard__title">
+        <span class="import-wizard__mark"><i data-lucide="file-spreadsheet" class="ui-icon" aria-hidden="true"></i></span>
+        <div><small>Assistant d’import</small><h2 id="import-wizard-title">Ajouter des données Excel</h2></div>
+      </div>
+      <button type="button" class="icon-button import-wizard__close" data-import-close aria-label="Fermer" title="Fermer"><i data-lucide="x" class="ui-icon" aria-hidden="true"></i></button>
+    </header>
+
+    <nav class="import-stepper" aria-label="Progression de l’import">
+      <button type="button" data-import-step-link="1"><span>1</span><strong>Choisir</strong></button>
+      <i aria-hidden="true"></i>
+      <button type="button" data-import-step-link="2"><span>2</span><strong>Fichier</strong></button>
+      <i aria-hidden="true"></i>
+      <button type="button" data-import-step-link="3"><span>3</span><strong>Vérifier</strong></button>
+    </nav>
+
+    <div class="import-wizard__body">
+      <form method="post" enctype="multipart/form-data" data-submit-lock data-import-upload-form>
+        {% csrf_token %}
+        <section class="import-wizard__step" data-import-step="1">
+          <div class="import-step-heading"><span class="eyebrow">Étape 1 sur 3</span><h3>Que souhaitez-vous ajouter ?</h3><p>Choisissez un contenu. Téléchargez son modèle si vous ne l’avez pas encore.</p></div>
+          {% if form.import_type.errors %}<div class="form-errors">{{ form.import_type.errors }}</div>{% endif %}
+          <div class="import-choice-grid">
+            {% for definition in definitions %}
+              <article class="import-choice-card" data-import-choice>
+                <label>
+                  <input type="radio" name="import_type" value="{{ definition.key }}" data-import-type data-import-label="{{ definition.label }}"{% if form.import_type.value == definition.key or not form.import_type.value and forloop.first %} checked{% endif %} required>
+                  <span class="import-choice-card__check"><i data-lucide="check" class="ui-icon" aria-hidden="true"></i></span>
+                  <span class="import-choice-card__icon"><i data-lucide="{{ definition.icon }}" class="ui-icon" aria-hidden="true"></i></span>
+                  <span class="import-choice-card__copy"><strong>{{ definition.label }}</strong><small>{{ definition.short_description }}</small></span>
+                </label>
+                <a href="{% url 'operations:data-import-template' definition.key %}" class="import-template-link" aria-label="Télécharger le modèle {{ definition.label }}"><i data-lucide="download" class="ui-icon" aria-hidden="true"></i> Modèle Excel</a>
+              </article>
+            {% endfor %}
+          </div>
+          <footer class="import-wizard__actions">
+            <button type="button" class="ui-button ui-button--ghost" data-import-close>Annuler</button>
+            <button type="button" class="ui-button ui-button--primary" data-import-next="2">Continuer <i data-lucide="arrow-right" class="ui-icon" aria-hidden="true"></i></button>
+          </footer>
+        </section>
+
+        <section class="import-wizard__step" data-import-step="2" hidden>
+          <div class="import-step-heading"><span class="eyebrow">Étape 2 sur 3</span><h3>Ajoutez votre fichier</h3><p>Le fichier sera d’abord vérifié. Aucune donnée ne sera ajoutée sans votre confirmation.</p></div>
+          {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+          <div class="import-selected-type"><span><i data-lucide="file-check-2" class="ui-icon" aria-hidden="true"></i></span><div><small>Contenu choisi</small><strong data-import-selected-label>—</strong></div><button type="button" data-import-back="1">Modifier</button></div>
+          <div class="form-field import-file-field import-dropzone">
+            <label for="{{ form.excel_file.id_for_label }}">
+              <span class="import-dropzone__icon"><i data-lucide="upload-cloud" class="ui-icon" aria-hidden="true"></i></span>
+              <strong>Choisir un fichier Excel</strong>
+              <small>Format XLSX uniquement · 20 Mo maximum</small>
+            </label>
+            {{ form.excel_file }}
+            <span class="import-file-name" data-import-file-name>Aucun fichier sélectionné</span>
+            {% for error in form.excel_file.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+          </div>
+          <footer class="import-wizard__actions">
+            <button type="button" class="ui-button ui-button--ghost" data-import-back="1"><i data-lucide="arrow-left" class="ui-icon" aria-hidden="true"></i> Retour</button>
+            <button type="submit" class="ui-button ui-button--primary" data-loading-label="Vérification…"><i data-lucide="search-check" class="ui-icon" aria-hidden="true"></i><span data-button-label>Vérifier le fichier</span></button>
+          </footer>
+        </section>
+      </form>
+
+      {% if analysis %}
+        <section class="import-wizard__step" data-import-step="3">
+          <div class="import-step-heading"><span class="eyebrow">Étape 3 sur 3</span><h3>Vérification terminée</h3><p>{{ analysis.file_name }} · {{ analysis.import_label }}</p></div>
+          <div class="import-review-summary">
+            <article><span><i data-lucide="rows-3" class="ui-icon" aria-hidden="true"></i></span><small>Lignes trouvées</small><strong>{{ analysis.total_rows }}</strong></article>
+            <article class="is-success"><span><i data-lucide="circle-check" class="ui-icon" aria-hidden="true"></i></span><small>Prêtes à ajouter</small><strong>{{ analysis.valid_count }}</strong></article>
+            <article{% if analysis.invalid_count %} class="is-warning"{% endif %}><span><i data-lucide="triangle-alert" class="ui-icon" aria-hidden="true"></i></span><small>À corriger</small><strong>{{ analysis.invalid_count }}</strong></article>
+          </div>
+
+          {% if analysis.already_imported %}
+            <div class="import-alert warning"><span><i data-lucide="triangle-alert" class="ui-icon" aria-hidden="true"></i></span><p><strong>Ce fichier a déjà été importé.</strong><small>Aucune donnée ne sera ajoutée une seconde fois.</small></p></div>
+          {% elif not analysis.valid_count %}
+            <div class="import-alert warning"><span><i data-lucide="triangle-alert" class="ui-icon" aria-hidden="true"></i></span><p><strong>Aucune ligne ne peut être ajoutée.</strong><small>Corrigez le fichier à partir des indications ci-dessous.</small></p></div>
+          {% elif analysis.invalid_count %}
+            <div class="import-alert warning"><span><i data-lucide="triangle-alert" class="ui-icon" aria-hidden="true"></i></span><p><strong>{% if analysis.invalid_count == 1 %}1 ligne sera ignorée.{% else %}{{ analysis.invalid_count }} lignes seront ignorées.{% endif %}</strong><small>Vous pouvez corriger le fichier ou ajouter uniquement {% if analysis.valid_count == 1 %}la ligne prête{% else %}les {{ analysis.valid_count }} lignes prêtes{% endif %}.</small></p></div>
+          {% else %}
+            <div class="import-alert success"><span><i data-lucide="circle-check" class="ui-icon" aria-hidden="true"></i></span><p><strong>Tout est prêt.</strong><small>Les {{ analysis.valid_count }} lignes seront ajoutées après confirmation.</small></p></div>
+          {% endif %}
+
+          {% if analysis.invalid_rows %}
+            <details class="advanced-drawer import-review-details">
+              <summary><span><strong>Voir ce qu’il faut corriger</strong><small>{{ analysis.invalid_count }} problème{{ analysis.invalid_count|pluralize }} détecté{{ analysis.invalid_count|pluralize }}</small></span><b><i data-lucide="chevron-down" class="ui-icon" aria-hidden="true"></i></b></summary>
+              <div class="advanced-drawer__content table-wrap"><table class="data-table"><thead><tr><th>Ligne Excel</th><th>Problème</th></tr></thead><tbody>{% for row in analysis.invalid_rows %}<tr><td><strong>{{ row.line }}</strong></td><td class="import-error-list">{{ row.errors|join:" · " }}</td></tr>{% endfor %}</tbody></table>{% if analysis.invalid_count > 20 %}<p class="table-note">Les 20 premières lignes en erreur sont affichées.</p>{% endif %}</div>
+            </details>
+          {% endif %}
+
+          <footer class="import-wizard__actions import-wizard__actions--review">
+            {% if pending_import %}
+              <form method="post" action="{% url 'operations:data-import-cancel' pending_import.id %}" data-submit-lock>{% csrf_token %}<button type="submit" class="ui-button ui-button--ghost" data-loading-label="Annulation…"><span data-button-label>Annuler</span></button></form>
+              <form method="post" action="{% url 'operations:data-import-confirm' pending_import.id %}" data-submit-lock data-confirm-form data-confirm-title="Ajouter ces données ?" data-confirm-text="Les lignes prêtes seront ajoutées au dépôt actif.">
+                {% csrf_token %}
+                {% if analysis.invalid_count %}<label class="import-valid-only"><input type="checkbox" name="import_valid_only" value="1" required> Ajouter uniquement les lignes prêtes</label>{% endif %}
+                <button type="submit" class="ui-button ui-button--primary" data-loading-label="Import en cours…"><i data-lucide="check" class="ui-icon" aria-hidden="true"></i><span data-button-label>Confirmer l’import</span></button>
+              </form>
+            {% else %}
+              <button type="button" class="ui-button ui-button--ghost" data-import-back="2"><i data-lucide="arrow-left" class="ui-icon" aria-hidden="true"></i> Choisir un autre fichier</button>
+              <button type="button" class="ui-button ui-button--primary" data-import-close>Terminer</button>
+            {% endif %}
+          </footer>
+        </section>
+      {% else %}
+        <section class="import-wizard__step" data-import-step="3" hidden aria-hidden="true"></section>
+      {% endif %}
+    </div>
+  </div>
+</dialog>
+{% endblock %}

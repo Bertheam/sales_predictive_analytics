@@ -87,9 +87,9 @@ class ForecastJobPageTests(TestCase):
     def test_page_is_available(self, _choices):
         response = self.client.get(reverse("forecasting:jobs"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Prévisions de ventes")
-        self.assertContains(response, "Préparez vos stocks")
-        self.assertContains(response, "Aucun réglage complexe")
+        self.assertContains(response, "Prévisions")
+        self.assertContains(response, "Quel produit voulez-vous anticiper")
+        self.assertContains(response, "Aucun réglage technique")
 
     @patch("forecasting.forms.product_choices", return_value=[])
     def test_technical_metrics_are_hidden_in_details(self, _choices):
@@ -103,8 +103,9 @@ class ForecastJobPageTests(TestCase):
             wape=18.4,
         )
         response = self.client.get(reverse("forecasting:jobs"))
-        self.assertContains(response, "Voir les détails techniques")
-        self.assertContains(response, "Erreur moyenne")
+        self.assertContains(response, "Comment NexaStock choisit-il une méthode")
+        self.assertContains(response, "Moyenne mobile 7 jours")
+        self.assertNotContains(response, "Erreur moyenne")
 
     @patch("forecasting.forms.product_choices", return_value=[])
     def test_successful_job_links_to_readable_result(self, _choices):
@@ -148,15 +149,31 @@ class ForecastJobPageTests(TestCase):
             "actual_quantity": None,
             "absolute_error": None,
         }]
+        service_class.return_value.get_product_stock.return_value = {
+            "current_stock": 30,
+            "minimum_stock": 2,
+            "stock_date": date.today(),
+        }
 
         response = self.client.get(reverse("forecasting:result", args=[job.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Demande prévue par jour")
-        self.assertContains(response, "Scénario prudent")
-        self.assertContains(response, "102000")
+        self.assertContains(response, "Ventes probables")
+        self.assertContains(response, "À ajouter")
+        self.assertContains(response, "Stock aujourd’hui")
+        self.assertContains(response, "Stock restant")
+        self.assertContains(response, "Voir le stock jour après jour")
+        self.assertContains(response, "+4,0 colis")
+        self.assertContains(response, 'data-forecast-segment="probable"')
+        self.assertContains(response, 'data-forecast-segment="safety-margin"')
+        self.assertNotContains(response, "Décision du moteur")
+        self.assertNotContains(response, "P90")
+        self.assertNotContains(response, "CA estimé")
         service_class.return_value.get_forecast_results.assert_called_once_with(
             str(job.forecast_id)
+        )
+        service_class.return_value.get_product_stock.assert_called_once_with(
+            str(product_id)
         )
 
     def test_result_of_another_company_is_not_accessible(self):

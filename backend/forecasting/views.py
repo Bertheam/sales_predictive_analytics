@@ -1,3 +1,5 @@
+from math import sqrt
+
 from django.contrib import messages
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -140,7 +142,9 @@ def forecast_result(request, job_id):
         forecast_id__isnull=False,
     )
     with session_for_company(request.company.id) as db:
-        rows = FutureForecastService(db).get_forecast_results(str(job.forecast_id))
+        service = FutureForecastService(db)
+        rows = service.get_forecast_results(str(job.forecast_id))
+        stock_snapshot = service.get_product_stock(str(job.product_id))
 
     results = []
     for row in rows:
@@ -170,12 +174,52 @@ def forecast_result(request, job_id):
     for row in results:
         row["predicted_width"] = max(2, row["predicted_quantity"] / chart_max * 100)
         row["prudent_width"] = max(2, row["predicted_p90"] / chart_max * 100)
+        row["safety_margin"] = max(
+            0,
+            row["predicted_p90"] - row["predicted_quantity"],
+        )
+        row["safety_margin_width"] = max(
+            0,
+            row["prudent_width"] - row["predicted_width"],
+        )
+
+    predicted_total = sum(row["predicted_quantity"] for row in results)
+    uncertainty_buffer = sqrt(sum(row["safety_margin"] ** 2 for row in results))
+    operational_reserve = float(stock_snapshot["minimum_stock"])
+    safety_margin = uncertainty_buffer + operational_reserve
+    current_stock = float(stock_snapshot["current_stock"])
+    target_stock = predicted_total + safety_margin
+    stock_to_add = max(0.0, target_stock - current_stock)
+
+    projected_stock = current_stock
+    remaining_sales = predicted_total
+    for row in results:
+        row["stock_before"] = projected_stock
+        projected_stock = max(0.0, projected_stock - row["predicted_quantity"])
+        remaining_sales = max(0.0, remaining_sales - row["predicted_quantity"])
+        row["stock_after"] = projected_stock
+        remaining_target = remaining_sales + safety_margin
+        if row["stock_before"] < row["predicted_quantity"]:
+            row["stock_status"] = "RUPTURE"
+            row["stock_status_label"] = "Rupture probable"
+        elif projected_stock < remaining_target:
+            row["stock_status"] = "WATCH"
+            row["stock_status_label"] = "À surveiller"
+        else:
+            row["stock_status"] = "OK"
+            row["stock_status_label"] = "Suffisant"
 
     totals = {
-        "quantity": sum(row["predicted_quantity"] for row in results),
-        "prudent": sum(row["predicted_p90"] for row in results),
+        "quantity": predicted_total,
+        "uncertainty_buffer": uncertainty_buffer,
+        "operational_reserve": operational_reserve,
+        "safety_margin": safety_margin,
+        "target_stock": target_stock,
+        "current_stock": current_stock,
+        "stock_after_period": max(0.0, current_stock - predicted_total),
         "revenue": sum(row["predicted_revenue"] for row in results),
-        "stock": sum(row["recommended_stock"] for row in results),
+        "stock": stock_to_add,
+        "stock_date": stock_snapshot["stock_date"],
     }
     return render(request, "forecasting/result.html", {
         "job": job,

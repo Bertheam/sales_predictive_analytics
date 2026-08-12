@@ -49,3 +49,34 @@ class ProductRepository:
             "name": row.name,
             "selling_price": float(row.selling_price),
         }
+
+    def get_stock_snapshot(self, product_id: str) -> dict:
+        row = self.db.execute(
+            text("""
+                SELECT
+                    COALESCE(stock.closing_stock, 0) AS current_stock,
+                    COALESCE(p.minimum_stock, 0) AS minimum_stock,
+                    stock.stock_date
+                FROM products p
+                LEFT JOIN LATERAL (
+                    SELECT ds.closing_stock, ds.stock_date
+                    FROM daily_stocks ds
+                    WHERE ds.product_id = p.id
+                      AND ds.company_id = :company_id
+                    ORDER BY ds.stock_date DESC
+                    LIMIT 1
+                ) stock ON TRUE
+                WHERE p.id = :product_id
+                  AND p.company_id = :company_id
+                  AND p.is_active = TRUE
+                  AND p.deleted_at IS NULL
+            """),
+            {"product_id": product_id, "company_id": self.company_id},
+        ).mappings().one_or_none()
+        if row is None:
+            raise ValueError("Produit introuvable ou inactif.")
+        return {
+            "current_stock": float(row["current_stock"]),
+            "minimum_stock": float(row["minimum_stock"]),
+            "stock_date": row["stock_date"],
+        }

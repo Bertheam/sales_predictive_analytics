@@ -1,9 +1,12 @@
-<section class="page-heading flex flex-col gap-4 md:flex-row md:items-end md:justify-between{% if action_href or back_href %} action-heading{% endif %}">
+<section class="page-heading calm-page-heading flex flex-col gap-4 md:flex-row md:items-end md:justify-between{% if action_href or back_href %} action-heading{% endif %}">
   <div>
-    {% if back_href %}<a class="back-link" href="{{ back_href }}">← {{ back_label|default:"Retour" }}</a>{% endif %}
+    {% if back_href %}<a class="back-link" href="{{ back_href }}" aria-label="{{ back_label|default:'Retour' }}"><i data-lucide="chevron-left" class="ui-icon" aria-hidden="true"></i><span>Retour</span></a>{% endif %}
     {% if eyebrow %}<span class="eyebrow">{{ eyebrow }}</span>{% endif %}
     <h1>{{ title }}</h1>
     {% if subtitle %}<p>{{ subtitle }}{% if subtitle_suffix %} {{ subtitle_suffix }}{% endif %}</p>{% endif %}
   </div>
-  {% if action_href %}{% include "components/button.html" with href=action_href label=action_label icon=action_icon extra_classes="inline-button" only %}{% endif %}
+  {% if action_href or secondary_action_href %}<div class="page-heading__actions">
+    {% if secondary_action_href %}{% include "components/button.html" with href=secondary_action_href label=secondary_action_label icon=secondary_action_icon variant="ghost" extra_classes="inline-button" only %}{% endif %}
+    {% if action_href %}{% include "components/button.html" with href=action_href label=action_label icon=action_icon extra_classes="inline-button" only %}{% endif %}
+  </div>{% endif %}
 </section>

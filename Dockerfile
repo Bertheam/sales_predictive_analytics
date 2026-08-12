@@ -6,7 +6,7 @@ RUN npm ci
 COPY backend/templates ./backend/templates
 COPY backend/static/src ./backend/static/src
 COPY backend/static/js ./backend/static/js
-RUN npm run css:build
+RUN npm run assets:build
 
 FROM python:3.12-slim
 
@@ -32,6 +32,7 @@ RUN useradd --create-home --shell /bin/bash appuser
 
 COPY --chown=appuser:appuser . .
 COPY --from=frontend --chown=appuser:appuser /build/backend/static/css/tailwind.css /app/backend/static/css/tailwind.css
+COPY --from=frontend --chown=appuser:appuser /build/backend/static/vendor/lucide/lucide.min.js /app/backend/static/vendor/lucide/lucide.min.js
 RUN mkdir -p /app/staticfiles \
     && chown appuser:appuser /app/staticfiles \
     && chmod +x /app/docker/entrypoint.sh

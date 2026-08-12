@@ -34,7 +34,9 @@ class CompanyFlowTests(TestCase):
         membership = Membership.objects.get(company=company, user=self.user)
         self.assertEqual(membership.role, Membership.Role.OWNER)
         self.assertEqual(self.client.session["active_company_id"], str(company.pk))
-        self.assertRedirects(response, reverse("dashboard:home"))
+        self.assertRedirects(
+            response, reverse("dashboard:home"), fetch_redirect_response=False
+        )
 
     def test_user_cannot_select_another_company(self):
         foreign = Company.objects.create(code="foreign-001", name="Dépôt sans accès")
@@ -245,7 +247,11 @@ class TeamManagementTests(TestCase):
         self.assertContains(response, "Équipe du dépôt")
         self.assertContains(response, self.owner.email)
         self.assertContains(response, "data-submit-lock")
-        self.assertContains(response, 'data-loading-label="Envoi en cours…"')
+        self.assertContains(response, 'data-loading-label="Création en cours…"')
+        self.assertNotContains(response, "Membres actifs")
+        self.assertNotContains(response, "Invitations en attente")
+        self.assertContains(response, 'data-contact-panel="PHONE"')
+        self.assertContains(response, 'data-contact-panel="EMAIL" hidden')
 
     def test_team_page_uses_a_business_friendly_sent_label(self):
         CompanyInvitation.objects.create(
@@ -283,6 +289,63 @@ class TeamManagementTests(TestCase):
         queue_email.assert_called_once()
         self.assertEqual(queue_email.call_args.kwargs["invitation"], invitation)
         self.assertIn("/invitations/", queue_email.call_args.kwargs["accept_url"])
+
+    @patch("companies.views.queue_company_invitation_email")
+    def test_owner_can_invite_by_phone_and_receive_a_shareable_link(self, queue_email):
+        response = self.client.post(
+            reverse("companies:team-invite"),
+            {
+                "channel": CompanyInvitation.Channel.PHONE,
+                "phone": "+223 76 12 34 56",
+                "role": Membership.Role.VIEWER,
+            },
+        )
+
+        invitation = CompanyInvitation.objects.get(phone="+22376123456")
+        self.assertRedirects(response, reverse("companies:team"), fetch_redirect_response=False)
+        self.assertEqual(invitation.channel, CompanyInvitation.Channel.PHONE)
+        self.assertIsNone(invitation.email)
+        self.assertEqual(invitation.email_status, CompanyInvitation.EmailStatus.UNKNOWN)
+        queue_email.assert_not_called()
+        share_url = self.client.session["phone_invitation_url"]
+        self.assertIn("/invitations/", share_url)
+
+        page = self.client.get(reverse("companies:team"))
+        self.assertContains(page, "+22376123456")
+        self.assertContains(page, "Copier le lien")
+        self.assertContains(page, share_url)
+
+    def test_new_phone_only_user_can_accept_invitation(self):
+        raw_token = "phone-member-secure-token"
+        invitation = CompanyInvitation.objects.create(
+            company=self.company,
+            channel=CompanyInvitation.Channel.PHONE,
+            phone="+22376111222",
+            token_hash=hash_invitation_token(raw_token),
+            role=Membership.Role.ANALYST,
+            invited_by=self.owner,
+            expires_at=timezone.now() + timedelta(days=3),
+        )
+        self.client.logout()
+
+        response = self.client.post(
+            reverse("companies:invitation-accept", args=[raw_token]),
+            {
+                "full_name": "Analyste Téléphone",
+                "password1": "Mot-de-passe-solide-2026!",
+                "password2": "Mot-de-passe-solide-2026!",
+            },
+        )
+
+        user = User.objects.get(phone="+22376111222")
+        membership = Membership.objects.get(company=self.company, user=user)
+        invitation.refresh_from_db()
+        self.assertIsNone(user.email)
+        self.assertEqual(membership.role, Membership.Role.ANALYST)
+        self.assertEqual(invitation.status, CompanyInvitation.Status.ACCEPTED)
+        self.assertRedirects(
+            response, reverse("dashboard:home"), fetch_redirect_response=False
+        )
 
     @patch("companies.views.queue_company_invitation_email", return_value=True)
     def test_owner_can_resend_a_fresh_invitation_link(self, queue_email):
@@ -431,7 +494,9 @@ class TeamManagementTests(TestCase):
         self.assertEqual(membership.role, Membership.Role.ANALYST)
         self.assertEqual(membership.status, Membership.Status.ACTIVE)
         self.assertEqual(invitation.status, CompanyInvitation.Status.ACCEPTED)
-        self.assertRedirects(response, reverse("dashboard:home"))
+        self.assertRedirects(
+            response, reverse("dashboard:home"), fetch_redirect_response=False
+        )
 
     def test_expired_invitation_is_unavailable(self):
         raw_token = "expired-secure-token"

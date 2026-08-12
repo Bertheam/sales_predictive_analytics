@@ -1,11 +1,17 @@
-from datetime import date, time
+from datetime import date, datetime, time
+from decimal import Decimal
+import logging
 from uuid import UUID
 
 from django.contrib import messages
 from django.db import IntegrityError
-from django.http import Http404
-from django.shortcuts import redirect, render
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
+from app.database.session import session_for_company
+from app.imports.definitions import IMPORT_DEFINITIONS
+from app.services.data_import_service import DataImportService
 from companies.models import Membership
 from companies.permissions import company_required, company_roles_required
 from .data import (
@@ -37,8 +43,9 @@ from .data import (
     update_receipt_metadata,
     supplier_catalog,
 )
-from .forms import CustomerForm, MovementForm, ProductForm, ReceiptEditForm, ReceiptForm, ReceiptItemFormSet, SaleEditForm, SaleForm, SaleItemFormSet, SupplierForm
+from .forms import CustomerForm, DataImportUploadForm, MovementForm, ProductForm, ReceiptEditForm, ReceiptForm, ReceiptItemFormSet, SaleEditForm, SaleForm, SaleItemFormSet, SupplierForm
 from .listing import sort_and_paginate
+from .models import PendingDataImport
 from audit.models import AuditLog
 from audit.services import record_audit
 
@@ -47,6 +54,36 @@ MANAGEMENT_ROLES = (
     Membership.Role.OWNER,
     Membership.Role.ADMIN,
 )
+logger = logging.getLogger(__name__)
+
+IMPORT_LABELS = {
+    import_type: definition["label"]
+    for import_type, definition in IMPORT_DEFINITIONS.items()
+}
+IMPORT_TEMPLATE_NAMES = {
+    "SALES": "modele_ventes.xlsx",
+    "STOCKS": "modele_stocks.xlsx",
+    "PRODUCTS": "modele_produits.xlsx",
+    "CUSTOMERS": "modele_clients.xlsx",
+}
+IMPORT_PRESENTATION = {
+    "SALES": {
+        "icon": "shopping-cart",
+        "short_description": "Ajouter plusieurs ventes et leurs articles.",
+    },
+    "STOCKS": {
+        "icon": "boxes",
+        "short_description": "Mettre à jour les quantités disponibles.",
+    },
+    "PRODUCTS": {
+        "icon": "package",
+        "short_description": "Créer plusieurs produits du catalogue.",
+    },
+    "CUSTOMERS": {
+        "icon": "users",
+        "short_description": "Ajouter plusieurs clients du dépôt.",
+    },
+}
 
 
 def _parse_date(value):
@@ -61,6 +98,60 @@ def _parse_uuid(value):
         return str(UUID(value)) if value else ""
     except (TypeError, ValueError):
         return ""
+
+
+def _display_excel_value(value):
+    if value is None:
+        return "—"
+    try:
+        if value != value:
+            return "—"
+    except (TypeError, ValueError):
+        pass
+    if isinstance(value, datetime):
+        return value.strftime("%d/%m/%Y %H:%M")
+    if isinstance(value, date):
+        return value.strftime("%d/%m/%Y")
+    if isinstance(value, time):
+        return value.strftime("%H:%M")
+    if isinstance(value, Decimal):
+        return f"{value:f}"
+    return str(value)
+
+
+def _present_analysis(analysis):
+    preview = analysis["preview"]
+    invalid_rows = [
+        {
+            "line": row["_row_number"],
+            "errors": row["_errors"],
+        }
+        for row in analysis["invalid_rows"][:20]
+    ]
+    return {
+        "file_name": analysis["file_name"],
+        "import_type": analysis["import_type"],
+        "import_label": IMPORT_LABELS[analysis["import_type"]],
+        "total_rows": analysis["total_rows"],
+        "valid_count": len(analysis["valid_rows"]),
+        "invalid_count": len(analysis["invalid_rows"]),
+        "duplicate_count": len(analysis["duplicate_rows"]),
+        "already_imported": analysis["already_imported"],
+        "preview_columns": [str(column) for column in preview.columns],
+        "preview_rows": [
+            [_display_excel_value(value) for value in row]
+            for row in preview.itertuples(index=False, name=None)
+        ],
+        "invalid_rows": invalid_rows,
+    }
+
+
+def _present_history(history):
+    for batch in history:
+        batch["import_label"] = IMPORT_LABELS.get(
+            batch.get("import_type"), batch.get("import_type", "—")
+        )
+    return history
 
 
 @company_required
@@ -520,8 +611,12 @@ def sale_create(request):
                 request.company.id,
                 request.user.id,
                 form.cleaned_data,
-                [item.cleaned_data for item in items],
-                request.user.full_name or request.user.email,
+                [
+                    item.cleaned_data
+                    for item in items
+                    if item not in items.deleted_forms
+                ],
+                request.user.full_name or request.user.login_identifier,
             )
         except (IntegrityError, ValueError) as exc:
             form.add_error(None, str(exc) if isinstance(exc, ValueError) else "La vente n’a pas pu être enregistrée.")
@@ -534,6 +629,10 @@ def sale_create(request):
 
 @company_roles_required(*MANAGEMENT_ROLES)
 def receipt_create(request):
+    return_to_procurement = (
+        request.GET.get("next") == "approvisionnement"
+        or request.POST.get("next") == "approvisionnement"
+    )
     references = operational_references(request.company.id)
     form = ReceiptForm(request.POST or None, suppliers=references["suppliers"])
     items = ReceiptItemFormSet(
@@ -547,15 +646,29 @@ def receipt_create(request):
                 request.company.id,
                 request.user.id,
                 form.cleaned_data,
-                [item.cleaned_data for item in items],
+                [
+                    item.cleaned_data
+                    for item in items
+                    if item not in items.deleted_forms
+                ],
             )
         except (IntegrityError, ValueError) as exc:
             form.add_error(None, str(exc) if isinstance(exc, ValueError) else "La réception n’a pas pu être enregistrée.")
         else:
             record_audit(request, action=AuditLog.Action.CREATE, resource_type="purchase_receipt", resource_id=result["id"], description=f"Création de la réception {result['number']}.", metadata={"receipt_number": result["number"], "total": str(result["total"])})
             messages.success(request, f"Réception {result['number']} enregistrée et stock mis à jour.")
-            return redirect("operations:stocks")
-    return render(request, "operations/receipt_form.html", {"form": form, "items": items})
+            return redirect(
+                "decisions:receipts" if return_to_procurement else "operations:stocks"
+            )
+    return render(
+        request,
+        "operations/receipt_form.html",
+        {
+            "form": form,
+            "items": items,
+            "return_to_procurement": return_to_procurement,
+        },
+    )
 
 
 @company_roles_required(*MANAGEMENT_ROLES)
@@ -615,3 +728,188 @@ def movement_create(request):
             messages.success(request, f"Mouvement {result['number']} enregistré. Nouveau stock : {result['current']} colis.")
             return redirect("operations:stocks")
     return render(request, "operations/movement_form.html", {"form": form})
+
+
+@company_roles_required(*MANAGEMENT_ROLES)
+def data_import(request):
+    PendingDataImport.objects.filter(
+        company=request.company,
+        expires_at__lte=timezone.now(),
+    ).delete()
+
+    form = DataImportUploadForm(request.POST or None, request.FILES or None)
+    presented_analysis = None
+    pending_import = None
+
+    try:
+        with session_for_company(request.company.id) as db:
+            service = DataImportService(db)
+            history = _present_history(service.get_history())
+            selected_batch = _parse_uuid(request.GET.get("batch"))
+            batch_errors = (
+                service.get_batch_errors(selected_batch) if selected_batch else []
+            )
+
+            if request.method == "POST" and form.is_valid():
+                uploaded_file = form.cleaned_data["excel_file"]
+                content = uploaded_file.read()
+                try:
+                    analysis = service.analyze_file(
+                        file_name=uploaded_file.name,
+                        content=content,
+                        import_type=form.cleaned_data["import_type"],
+                    )
+                except ValueError as exc:
+                    form.add_error("excel_file", str(exc))
+                else:
+                    presented_analysis = _present_analysis(analysis)
+                    if not analysis["already_imported"] and analysis["valid_rows"]:
+                        pending_import = PendingDataImport.objects.create(
+                            company=request.company,
+                            created_by=request.user,
+                            import_type=analysis["import_type"],
+                            original_name=analysis["file_name"][:255],
+                            content=content,
+                            file_hash=analysis["file_hash"],
+                        )
+    except Exception:
+        logger.exception(
+            "Unable to prepare data import for company %s", request.company.id
+        )
+        messages.error(
+            request,
+            "L’analyse du fichier est momentanément indisponible. Réessayez dans quelques instants.",
+        )
+        history = []
+        batch_errors = []
+
+    return render(request, "operations/data_import.html", {
+        "form": form,
+        "definitions": [
+            {
+                "key": import_type,
+                "label": definition["label"],
+                "description": definition["description"],
+                **IMPORT_PRESENTATION[import_type],
+            }
+            for import_type, definition in IMPORT_DEFINITIONS.items()
+        ],
+        "history": history,
+        "analysis": presented_analysis,
+        "pending_import": pending_import,
+        "batch_errors": batch_errors,
+        "selected_batch": _parse_uuid(request.GET.get("batch")),
+    })
+
+
+@company_roles_required(*MANAGEMENT_ROLES)
+def data_import_template(request, import_type):
+    import_type = import_type.upper()
+    if import_type not in IMPORT_DEFINITIONS:
+        raise Http404("Modèle d’import introuvable.")
+    try:
+        with session_for_company(request.company.id) as db:
+            content = DataImportService(db).get_template(import_type, "XLSX")
+    except Exception:
+        logger.exception(
+            "Unable to generate import template %s for company %s",
+            import_type,
+            request.company.id,
+        )
+        messages.error(request, "Le modèle Excel n’a pas pu être généré.")
+        return redirect("operations:data-import")
+
+    response = HttpResponse(
+        content,
+        content_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="{IMPORT_TEMPLATE_NAMES[import_type]}"'
+    )
+    return response
+
+
+@company_roles_required(*MANAGEMENT_ROLES)
+def data_import_confirm(request, pending_id):
+    if request.method != "POST":
+        raise Http404
+    pending_import = get_object_or_404(
+        PendingDataImport,
+        id=pending_id,
+        company=request.company,
+        created_by=request.user,
+    )
+    if pending_import.is_expired:
+        pending_import.delete()
+        messages.warning(
+            request,
+            "Cet aperçu a expiré. Analysez de nouveau le fichier avant de l’importer.",
+        )
+        return redirect("operations:data-import")
+
+    try:
+        with session_for_company(request.company.id) as db:
+            service = DataImportService(db)
+            analysis = service.analyze_file(
+                file_name=pending_import.original_name,
+                content=bytes(pending_import.content),
+                import_type=pending_import.import_type,
+            )
+            result = service.execute_import(
+                analysis,
+                import_valid_only=request.POST.get("import_valid_only") == "1",
+            )
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("operations:data-import")
+    except Exception:
+        logger.exception(
+            "Data import failed for company %s and pending import %s",
+            request.company.id,
+            pending_import.id,
+        )
+        messages.error(
+            request,
+            "L’import n’a pas pu être terminé. Aucune donnée partielle n’a été conservée.",
+        )
+        return redirect("operations:data-import")
+
+    pending_import.delete()
+    record_audit(
+        request,
+        action=AuditLog.Action.IMPORT,
+        resource_type="data_import",
+        resource_id=result["batch_id"],
+        description=(
+            f"Import Excel {result['batch_number']} : "
+            f"{result['imported_rows']} ligne(s) importée(s)."
+        ),
+        metadata={
+            "batch_number": result["batch_number"],
+            "import_type": analysis["import_type"],
+            "file_name": analysis["file_name"],
+            "imported_rows": result["imported_rows"],
+            "invalid_rows": result["invalid_rows"],
+            "duplicate_rows": result["duplicate_rows"],
+        },
+    )
+    messages.success(
+        request,
+        f"{result['imported_rows']} ligne(s) importée(s) avec succès.",
+    )
+    return redirect("operations:data-import")
+
+
+@company_roles_required(*MANAGEMENT_ROLES)
+def data_import_cancel(request, pending_id):
+    if request.method != "POST":
+        raise Http404
+    PendingDataImport.objects.filter(
+        id=pending_id,
+        company=request.company,
+        created_by=request.user,
+    ).delete()
+    messages.info(request, "Import annulé. Aucune donnée n’a été ajoutée.")
+    return redirect("operations:data-import")

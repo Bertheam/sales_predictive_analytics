@@ -23,6 +23,7 @@ class MeView(APIView):
         return Response({
             "id": request.user.id,
             "email": request.user.email,
+            "phone": request.user.phone,
             "full_name": request.user.full_name,
         })
 
@@ -45,6 +46,7 @@ class ContextView(APIView):
             "user": {
                 "id": request.user.id,
                 "email": request.user.email,
+                "phone": request.user.phone,
                 "full_name": request.user.full_name,
             },
             "company": None if not company else {

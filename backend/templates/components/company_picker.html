@@ -6,7 +6,7 @@
         <small class="block text-[9px] font-extrabold uppercase tracking-[.12em] text-muted">Dépôt actif</small>
         <strong class="mt-0.5 block truncate text-xs text-ink">{{ active_company.name }}</strong>
       </span>
-      <span class="text-xs text-muted transition duration-300 group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true">⌄</span>
+      <span class="text-xs text-muted transition duration-300 group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true"><i data-lucide="chevron-down" class="ui-icon"></i></span>
     </summary>
     <div class="company-picker__menu absolute left-0 top-[calc(100%+.55rem)] z-30 w-[min(290px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-line bg-white p-2 shadow-[0_22px_55px_rgba(17,47,38,.18)]">
       <div class="px-2.5 pb-2 pt-1.5">
@@ -22,12 +22,12 @@
             <button type="submit" class="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-emerald-50 focus-visible:outline-brand-500 {% if membership.company_id == active_company.id %}bg-emerald-50{% endif %}"{% if membership.company_id == active_company.id %} aria-current="true"{% endif %}>
               <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {% if membership.company_id == active_company.id %}bg-brand-600 text-white{% else %}bg-soft text-muted{% endif %} text-xs font-black">{{ membership.company.name|first|upper }}</span>
               <span class="min-w-0 flex-1"><strong class="block truncate text-xs text-ink">{{ membership.company.name }}</strong><small class="mt-0.5 block truncate text-[9px] text-muted">{{ membership.get_role_display }}{% if membership.company.city %} · {{ membership.company.city }}{% endif %}</small></span>
-              {% if membership.company_id == active_company.id %}<span class="text-sm font-black text-brand-600" title="Dépôt actuellement sélectionné">✓</span>{% else %}<span class="text-xs text-muted">→</span>{% endif %}
+              {% if membership.company_id == active_company.id %}<span class="text-sm font-black text-brand-600" title="Dépôt actuellement sélectionné"><i data-lucide="check" class="ui-icon" aria-hidden="true"></i></span>{% else %}<span class="text-xs text-muted"><i data-lucide="arrow-right" class="ui-icon" aria-hidden="true"></i></span>{% endif %}
             </button>
           </form>
         {% endfor %}
       </div>
-      <div class="mt-2 grid grid-cols-2 gap-2"><a class="flex min-h-10 items-center justify-center rounded-xl border border-line text-[10px] font-extrabold text-muted transition hover:bg-soft" href="{% url 'companies:list' %}">Gérer</a><a class="flex min-h-10 items-center justify-center rounded-xl border border-dashed border-emerald-200 text-[10px] font-extrabold text-brand-700 transition hover:border-brand-500 hover:bg-emerald-50" href="{% url 'companies:onboarding' %}">+ Ajouter</a></div>
+      <div class="mt-2 grid grid-cols-2 gap-2"><a class="flex min-h-10 items-center justify-center rounded-xl border border-line text-[10px] font-extrabold text-muted transition hover:bg-soft" href="{% url 'companies:list' %}">Gérer</a><a class="flex min-h-10 items-center justify-center rounded-xl border border-dashed border-emerald-200 text-[10px] font-extrabold text-brand-700 transition hover:border-brand-500 hover:bg-emerald-50" href="{% url 'companies:onboarding' %}"><i data-lucide="plus" class="ui-icon" aria-hidden="true"></i> Ajouter</a></div>
     </div>
   </details>
 {% endif %}

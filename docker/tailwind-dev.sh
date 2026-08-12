@@ -2,7 +2,7 @@
 set -eu
 
 npm ci
-npm run css:build
+npm run assets:build
 
 monitor_output() {
     while true; do

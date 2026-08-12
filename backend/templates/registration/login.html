@@ -3,7 +3,7 @@
 {% block content %}
   <span class="eyebrow">Espace sécurisé</span>
   <h2>Heureux de vous revoir.</h2>
-  <p class="lead">Connectez-vous pour retrouver le pilotage de votre dépôt.</p>
+  <p class="lead">Connectez-vous avec votre adresse e-mail ou le numéro de téléphone associé à votre compte.</p>
   <form method="post" class="stack-form">
     {% csrf_token %}
     {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}

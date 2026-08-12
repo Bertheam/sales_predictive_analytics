@@ -2,6 +2,8 @@ from django import forms
 from django.contrib.auth import password_validation
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from accounts.identifiers import normalize_phone
+
 from .models import Company, Membership
 
 
@@ -61,7 +63,18 @@ class StyledTeamForm(forms.Form):
 
 
 class InvitationForm(StyledTeamForm):
-    email = forms.EmailField(label="Adresse e-mail")
+    channel = forms.ChoiceField(
+        label="Comment transmettre l’accès ?",
+        choices=(("PHONE", "Par téléphone"), ("EMAIL", "Par e-mail")),
+        initial="PHONE",
+        required=False,
+    )
+    email = forms.EmailField(label="Adresse e-mail", required=False)
+    phone = forms.CharField(
+        label="Numéro de téléphone",
+        required=False,
+        help_text="Utilisez de préférence l’indicatif pays, par exemple +223.",
+    )
     role = forms.ChoiceField(label="Rôle", choices=())
 
     def __init__(self, *args, can_invite_admin=False, **kwargs):
@@ -76,7 +89,26 @@ class InvitationForm(StyledTeamForm):
         self.apply_style()
 
     def clean_email(self):
-        return self.cleaned_data["email"].strip().lower()
+        return (self.cleaned_data.get("email") or "").strip().lower() or None
+
+    def clean_phone(self):
+        return normalize_phone(self.cleaned_data.get("phone"))
+
+    def clean(self):
+        cleaned = super().clean()
+        channel = cleaned.get("channel") or (
+            "EMAIL" if cleaned.get("email") else "PHONE"
+        )
+        cleaned["channel"] = channel
+        if channel == "EMAIL":
+            if not cleaned.get("email"):
+                self.add_error("email", "Saisissez l’adresse e-mail du collaborateur.")
+            cleaned["phone"] = None
+        else:
+            if not cleaned.get("phone"):
+                self.add_error("phone", "Saisissez le numéro du collaborateur.")
+            cleaned["email"] = None
+        return cleaned
 
 
 class MemberRoleForm(StyledTeamForm):
@@ -104,9 +136,9 @@ class InvitationAcceptanceForm(StyledTeamForm):
         label="Confirmation du mot de passe", widget=forms.PasswordInput
     )
 
-    def __init__(self, *args, email="", **kwargs):
+    def __init__(self, *args, identifier="", **kwargs):
         super().__init__(*args, **kwargs)
-        self.email = email
+        self.identifier = identifier
         self.apply_style()
 
     def clean(self):
@@ -116,9 +148,9 @@ class InvitationAcceptanceForm(StyledTeamForm):
             self.add_error("password2", "Les deux mots de passe ne correspondent pas.")
         if password:
             candidate = type("Candidate", (), {
-                "email": self.email,
+                "email": self.identifier,
                 "full_name": cleaned.get("full_name", ""),
-                "username": self.email,
+                "username": self.identifier,
             })()
             try:
                 password_validation.validate_password(password, candidate)

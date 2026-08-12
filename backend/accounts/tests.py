@@ -25,6 +25,58 @@ class RegistrationTests(TestCase):
         })
         self.assertRedirects(response, reverse("dashboard:home"), fetch_redirect_response=False)
 
+    def test_phone_only_user_can_login_with_phone(self):
+        user = User.objects.create_user(
+            phone="+223 70 00 00 00",
+            password="A-secure-password-2026",
+            full_name="Gestionnaire sans e-mail",
+        )
+
+        response = self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "+22370000000",
+                "password": "A-secure-password-2026",
+            },
+        )
+
+        self.assertIsNone(user.email)
+        self.assertEqual(user.phone, "+22370000000")
+        self.assertRedirects(
+            response, reverse("dashboard:home"), fetch_redirect_response=False
+        )
+
+    def test_user_with_email_and_phone_can_use_either_identifier(self):
+        user = User.objects.create_user(
+            email="manager@example.com",
+            phone="00223 76 00 00 01",
+            password="A-secure-password-2026",
+            full_name="Gestionnaire polyvalent",
+        )
+
+        email_response = self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "MANAGER@example.com",
+                "password": "A-secure-password-2026",
+            },
+        )
+        self.assertEqual(email_response.status_code, 302)
+        self.client.logout()
+
+        phone_response = self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "+22376000001",
+                "password": "A-secure-password-2026",
+            },
+        )
+
+        self.assertEqual(user.phone, "+22376000001")
+        self.assertRedirects(
+            phone_response, reverse("dashboard:home"), fetch_redirect_response=False
+        )
+
 
 class ProfileTests(TestCase):
     def setUp(self):

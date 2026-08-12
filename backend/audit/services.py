@@ -33,7 +33,7 @@ def record_audit(
     if actor is None and getattr(request_user, "is_authenticated", False):
         actor = request_user
     company = company or (getattr(request, "company", None) if request else None)
-    email = actor_email or (getattr(actor, "email", "") if actor else "")
+    email = actor_email or (getattr(actor, "email", "") if actor else "") or ""
     return AuditLog.objects.create(
         actor=actor,
         actor_email=email[:254],

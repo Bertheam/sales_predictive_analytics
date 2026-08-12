@@ -1,0 +1,16 @@
+{% extends "base_app.html" %}
+{% block title %}Réceptionner {{ order.order_number }} · NexaStock{% endblock %}
+{% block content %}
+{% url 'decisions:order-detail' order.id as order_url %}{% include "components/page_header.html" with back_href=order_url back_label="Retour à la commande" eyebrow="Approvisionnement · Étape 3" title="Réceptionner la commande" subtitle=order.order_number subtitle_suffix=order.supplier_name only %}
+{% include "decisions/_procurement_tabs.html" with active_tab="receipts" %}
+
+<div class="receipt-order-notice"><span><i data-lucide="package-plus" class="ui-icon" aria-hidden="true"></i></span><div><strong>Seules les quantités réellement livrées doivent être saisies.</strong><p>La validation crée une réception et augmente immédiatement le stock. Le reliquat restera visible si la livraison est partielle.</p></div></div>
+
+<form method="post" class="panel business-form" data-confirm-form data-confirm-title="Valider cette réception ?" data-confirm-text="Les quantités saisies seront ajoutées au stock.">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-section"><div><span class="step-badge">01</span><h2>Date réelle</h2><p>Indiquez le jour où la marchandise est entrée dans le dépôt.</p></div><div class="form-grid"><div class="form-field">{% include "components/form_field.html" with field=form.receipt_date only %}</div></div></div>
+  <div class="form-section"><div><span class="step-badge">02</span><h2>Quantités reçues</h2><p>Vous pouvez mettre 0 pour un produit non livré aujourd’hui.</p></div><div class="order-receive-lines">{% for line in receipt_lines %}<article><div><strong>{{ line.item.product_name }}</strong><small>Commandé : {{ line.item.quantity_ordered|floatformat:0 }} · Déjà reçu : {{ line.item.quantity_received|floatformat:0 }} · Reste : {{ line.item.remaining_quantity|floatformat:0 }}</small></div><div>{% include "components/form_field.html" with field=line.quantity_field only %}</div><div>{% include "components/form_field.html" with field=line.unit_cost_field only %}</div></article>{% endfor %}</div></div>
+  <div class="form-actions">{% include "components/button.html" with href=order_url label="Annuler" variant="ghost" only %}{% include "components/button.html" with type="submit" label="Valider la réception" icon="check" loading_label="Mise à jour du stock…" only %}</div>
+</form>
+{% endblock %}

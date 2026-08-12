@@ -1,0 +1,43 @@
+{% extends "base_app.html" %}
+{% load listing_tags %}
+{% block title %}Commandes fournisseurs · NexaStock{% endblock %}
+{% block content %}
+{% url 'decisions:manual-order-create' as manual_order_url %}{% if can_manage %}{% include "components/page_header.html" with eyebrow="Approvisionnement · Étape 2" title="Commandes fournisseurs" subtitle="Utilisez une recommandation ou créez librement votre commande." action_href=manual_order_url action_label="Nouvelle commande" action_icon="plus" only %}{% else %}{% include "components/page_header.html" with eyebrow="Approvisionnement · Étape 2" title="Commandes fournisseurs" subtitle="Commandes recommandées et commandes libres du dépôt." only %}{% endif %}
+{% include "decisions/_procurement_tabs.html" with active_tab="orders" %}
+
+{% if can_manage and draft_groups %}
+<section class="procurement-section">
+  <div class="section-title"><div><span class="eyebrow">Plans préparés</span><h2>Prêts à commander</h2></div><span>{{ prepared_count }} produit{{ prepared_count|pluralize }}</span></div>
+  <div class="prepared-order-grid">
+    {% for group in draft_groups %}
+    <form method="post" action="{% url 'decisions:create-order' %}" class="panel prepared-order-card" data-confirm-form data-confirm-title="Créer cette commande ?" data-confirm-text="Elle sera enregistrée comme brouillon avant envoi.">
+      {% csrf_token %}
+      <div class="prepared-order-card__head"><span class="entity-icon">{{ group.supplier_name|first|upper }}</span><div><small>Fournisseur</small><strong>{{ group.supplier_name }}</strong></div><b>{{ group.quantity|floatformat:0 }} colis</b></div>
+      <div class="prepared-order-items">
+        {% for draft in group.drafts %}<label><input type="checkbox" name="draft_ids" value="{{ draft.id }}" checked><span><strong>{{ draft.product_name }}</strong><small>{{ draft.quantity|floatformat:0 }} colis</small></span></label>{% endfor %}
+      </div>
+      <div class="prepared-order-options">
+        <label><span>Livraison prévue <small>(facultatif)</small></span><input type="date" name="expected_date" class="form-control"></label>
+        <label><span>Note au fournisseur <small>(facultatif)</small></span><textarea name="notes" class="form-control" rows="2" maxlength="500" placeholder="Ex. Livraison le matin"></textarea></label>
+      </div>
+      {% include "components/button.html" with type="submit" label="Créer la commande" icon="plus" loading_label="Création…" only %}
+    </form>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if incomplete_drafts %}
+<details class="advanced-drawer" open><summary><span><strong>{{ incomplete_drafts|length }} plan{{ incomplete_drafts|length|pluralize }} sans fournisseur</strong><small>Choisissez un fournisseur avant de créer la commande</small></span><b><i data-lucide="chevron-down" class="ui-icon" aria-hidden="true"></i></b></summary><div class="advanced-drawer__content simple-result-list">{% for draft in incomplete_drafts %}<article><span class="result-icon"><i data-lucide="triangle-alert" class="ui-icon" aria-hidden="true"></i></span><div><strong>{{ draft.product_name }}</strong><small>{{ draft.quantity|floatformat:0 }} colis préparés</small></div><a href="{% url 'decisions:product-detail' draft.product_id %}" class="row-action">Choisir <i data-lucide="arrow-right" class="ui-icon" aria-hidden="true"></i></a></article>{% endfor %}</div></details>
+{% endif %}
+
+<section class="panel data-panel procurement-orders-panel">
+  <div class="panel-heading"><div><span class="eyebrow">Suivi</span><h2>Commandes enregistrées</h2><p>Le stock reste inchangé jusqu’à la réception.</p></div></div>
+  <form method="get" class="filter-bar"><div class="filter-field"><label for="order-status">Statut</label><select id="order-status" name="status"><option value="open"{% if status_filter == 'open' %} selected{% endif %}>Commandes en cours</option><option value="DRAFT"{% if status_filter == 'DRAFT' %} selected{% endif %}>Brouillons</option><option value="SENT"{% if status_filter == 'SENT' %} selected{% endif %}>Envoyées</option><option value="PARTIALLY_RECEIVED"{% if status_filter == 'PARTIALLY_RECEIVED' %} selected{% endif %}>Partiellement reçues</option><option value="RECEIVED"{% if status_filter == 'RECEIVED' %} selected{% endif %}>Réceptionnées</option><option value="CANCELLED"{% if status_filter == 'CANCELLED' %} selected{% endif %}>Annulées</option><option value="all"{% if status_filter == 'all' %} selected{% endif %}>Toutes</option></select></div>{% include "components/button.html" with type="submit" label="Afficher" variant="dark" only %}</form>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>Commande</th><th>Fournisseur</th><th>Créée le</th><th>Livraison prévue</th><th>Quantité</th><th>Statut</th><th></th></tr></thead><tbody>
+    {% for order in orders %}<tr><td><strong>{{ order.order_number }}</strong><small>{{ order.items.count }} produit{{ order.items.count|pluralize }}</small></td><td>{{ order.supplier_name }}</td><td>{{ order.created_at|date:"d/m/Y" }}</td><td>{{ order.expected_date|date:"d/m/Y"|default:"Non renseignée" }}</td><td>{{ order.ordered_quantity|floatformat:0 }} colis{% if order.received_quantity %}<small>{{ order.received_quantity|floatformat:0 }} déjà reçus</small>{% endif %}</td><td><span class="status-badge {{ order.status|status_variant }}">{{ order.get_status_display }}</span></td><td><a href="{% url 'decisions:order-detail' order.id %}" class="row-action">Ouvrir <i data-lucide="arrow-right" class="ui-icon" aria-hidden="true"></i></a></td></tr>
+    {% empty %}<tr><td colspan="7">{% include "components/empty_state.html" with icon="check" title="Aucune commande dans cette vue" description="Les plans préparés peuvent être transformés en commande ci-dessus." only %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if page_obj.paginator.num_pages > 1 %}<nav class="simple-pagination" aria-label="Pagination des commandes">{% if page_obj.has_previous %}<a href="?status={{ status_filter }}&page={{ page_obj.previous_page_number }}"><i data-lucide="chevron-left" class="ui-icon" aria-hidden="true"></i> Précédent</a>{% endif %}<span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?status={{ status_filter }}&page={{ page_obj.next_page_number }}">Suivant <i data-lucide="chevron-right" class="ui-icon" aria-hidden="true"></i></a>{% endif %}</nav>{% endif %}
+</section>
+{% endblock %}

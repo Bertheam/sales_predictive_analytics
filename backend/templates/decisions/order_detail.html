@@ -1,0 +1,29 @@
+{% extends "base_app.html" %}
+{% load listing_tags %}
+{% block title %}{{ order.order_number }} · NexaStock{% endblock %}
+{% block content %}
+{% url 'decisions:orders' as orders_url %}{% include "components/page_header.html" with back_href=orders_url back_label="Retour aux commandes" eyebrow="Commande fournisseur" title=order.order_number subtitle=order.supplier_name only %}
+{% include "decisions/_procurement_tabs.html" with active_tab="orders" %}
+
+<section class="order-status-card panel">
+  <div><small>Statut actuel</small><span class="status-badge {{ order.status|status_variant }}">{{ order.get_status_display }}</span></div>
+  <div><small>Commandé</small><strong>{{ order.ordered_quantity|floatformat:0 }} colis</strong></div>
+  <div><small>Déjà reçu</small><strong>{{ order.received_quantity|floatformat:0 }} colis</strong></div>
+  <div><small>Reste à recevoir</small><strong>{{ order.remaining_quantity|floatformat:0 }} colis</strong></div>
+</section>
+
+{% if can_manage and order.status != 'RECEIVED' and order.status != 'CANCELLED' %}<div class="order-actions">
+  {% if order.status == 'DRAFT' %}<form method="post" action="{% url 'decisions:send-order' order.id %}" data-confirm-form data-confirm-title="Marquer la commande comme envoyée ?">{% csrf_token %}{% include "components/button.html" with type="submit" label="Marquer comme envoyée" icon="send" loading_label="Mise à jour…" only %}</form>{% endif %}
+  <a href="{% url 'decisions:receive-order' order.id %}" class="ui-button ui-button--primary"><i data-lucide="package-plus" class="ui-icon" aria-hidden="true"></i> Réceptionner</a>
+  {% if not order.received_quantity %}<form method="post" action="{% url 'decisions:cancel-order' order.id %}" data-confirm-form data-confirm-title="Annuler cette commande ?" data-confirm-text="Elle restera visible dans l’historique.">{% csrf_token %}{% include "components/button.html" with type="submit" label="Annuler" variant="ghost" loading_label="Annulation…" only %}</form>{% endif %}
+</div>{% endif %}
+
+<section class="panel data-panel">
+  <div class="panel-heading"><div><span class="eyebrow">Contenu</span><h2>Produits commandés</h2></div><span class="date-chip">{% if order.expected_date %}Prévu le {{ order.expected_date|date:"d/m/Y" }}{% else %}Date libre{% endif %}</span></div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>Produit</th><th>Commandé</th><th>Reçu</th><th>Reste</th><th>Coût indicatif</th></tr></thead><tbody>{% for item in order.items.all %}<tr><td><strong>{{ item.product_name }}</strong><small>{{ item.product_code }}</small></td><td>{{ item.quantity_ordered|floatformat:0 }} colis</td><td>{{ item.quantity_received|floatformat:0 }} colis</td><td><strong>{{ item.remaining_quantity|floatformat:0 }} colis</strong></td><td>{{ item.unit_cost|floatformat:"0g" }} FCFA/colis</td></tr>{% endfor %}</tbody></table></div>
+</section>
+
+{% if order.receipts.exists %}<section class="panel data-panel order-receipts"><div class="panel-heading"><div><span class="eyebrow">Livraisons</span><h2>Réceptions liées</h2></div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Réception</th><th>Date d’enregistrement</th><th>Quantité</th></tr></thead><tbody>{% for receipt in order.receipts.all %}<tr><td><strong>{{ receipt.receipt_number }}</strong></td><td>{{ receipt.created_at|date:"d/m/Y H:i" }}</td><td>{{ receipt.quantity_received|floatformat:0 }} colis</td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+
+{% if order.notes %}<details class="advanced-drawer"><summary><span><strong>Note de la commande</strong><small>Information enregistrée pour le fournisseur</small></span><b><i data-lucide="chevron-down" class="ui-icon" aria-hidden="true"></i></b></summary><div class="advanced-drawer__content"><p>{{ order.notes }}</p></div></details>{% endif %}
+{% endblock %}

@@ -120,8 +120,11 @@ contrôlée transactionnellement dans le service de gestion des membres.
 ### Invitations
 
 La table `company_invitations` utilise un jeton aléatoire dont seul le hash est
-conservé, une date d'expiration, un email, un rôle et un statut. Une
-invitation ne crée pas une session et ne donne aucun accès avant acceptation.
+conservé, une date d'expiration, un e-mail ou un téléphone, un rôle et un
+statut. Le lien brut est envoyé par e-mail ou affiché une fois au responsable
+pour être partagé par SMS ou WhatsApp. Une invitation ne crée pas de session et
+ne donne aucun accès avant acceptation. Le membre se connecte ensuite avec son
+e-mail ou son téléphone.
 
 ### Compteurs métier
 

@@ -7,6 +7,8 @@ from django.contrib.auth import get_user_model
 from django.db import connection, transaction
 from django.utils import timezone
 
+from accounts.identifiers import normalize_phone
+
 from .models import Company, CompanyInvitation, Membership
 
 
@@ -137,33 +139,61 @@ def team_overview(company):
     return members, invitations, summary
 
 
-def create_or_refresh_invitation(*, company, email, role, invited_by):
-    email = email.strip().lower()
+def create_or_refresh_invitation(
+    *, company, channel, role, invited_by, email=None, phone=None
+):
+    email = (email or "").strip().lower() or None
+    phone = normalize_phone(phone)
+    if channel == CompanyInvitation.Channel.EMAIL and not email:
+        raise ValueError("Une adresse e-mail est requise pour ce mode d’invitation.")
+    if channel == CompanyInvitation.Channel.PHONE and not phone:
+        raise ValueError("Un numéro de téléphone est requis pour ce mode d’invitation.")
     if role not in {
         Membership.Role.ADMIN, Membership.Role.ANALYST, Membership.Role.VIEWER
     }:
         raise ValueError("Ce rôle ne peut pas être attribué par invitation.")
-    user = get_user_model().objects.filter(email__iexact=email).first()
+    identity_filter = (
+        {"email__iexact": email}
+        if channel == CompanyInvitation.Channel.EMAIL
+        else {"phone": phone}
+    )
+    user = get_user_model().objects.filter(**identity_filter).first()
     if user and Membership.objects.filter(
         company=company, user=user, status=Membership.Status.ACTIVE
     ).exists():
         raise ValueError("Cette personne fait déjà partie de l’équipe active.")
     with transaction.atomic():
-        CompanyInvitation.objects.filter(
+        pending = CompanyInvitation.objects.filter(
             company=company,
-            email__iexact=email,
+            channel=channel,
             status=CompanyInvitation.Status.PENDING,
-        ).update(status=CompanyInvitation.Status.REVOKED)
+        )
+        pending = (
+            pending.filter(email__iexact=email)
+            if channel == CompanyInvitation.Channel.EMAIL
+            else pending.filter(phone=phone)
+        )
+        pending.update(status=CompanyInvitation.Status.REVOKED)
         raw_token = token_urlsafe(32)
         invitation = CompanyInvitation.objects.create(
             company=company,
             email=email,
+            phone=phone,
+            channel=channel,
             token_hash=hash_invitation_token(raw_token),
             role=role,
             invited_by=invited_by,
             expires_at=timezone.now() + timedelta(days=INVITATION_VALIDITY_DAYS),
-            email_status=CompanyInvitation.EmailStatus.QUEUED,
-            email_queued_at=timezone.now(),
+            email_status=(
+                CompanyInvitation.EmailStatus.QUEUED
+                if channel == CompanyInvitation.Channel.EMAIL
+                else CompanyInvitation.EmailStatus.UNKNOWN
+            ),
+            email_queued_at=(
+                timezone.now()
+                if channel == CompanyInvitation.Channel.EMAIL
+                else None
+            ),
         )
         return invitation, raw_token
 
@@ -177,8 +207,16 @@ def renew_invitation_link(invitation):
         raw_token = token_urlsafe(32)
         invitation.token_hash = hash_invitation_token(raw_token)
         invitation.expires_at = timezone.now() + timedelta(days=INVITATION_VALIDITY_DAYS)
-        invitation.email_status = CompanyInvitation.EmailStatus.QUEUED
-        invitation.email_queued_at = timezone.now()
+        invitation.email_status = (
+            CompanyInvitation.EmailStatus.QUEUED
+            if invitation.channel == CompanyInvitation.Channel.EMAIL
+            else CompanyInvitation.EmailStatus.UNKNOWN
+        )
+        invitation.email_queued_at = (
+            timezone.now()
+            if invitation.channel == CompanyInvitation.Channel.EMAIL
+            else None
+        )
         invitation.email_sent_at = None
         invitation.email_failed_at = None
         invitation.email_error = ""
@@ -204,8 +242,16 @@ def accept_company_invitation(invitation, user):
             invitation.status = CompanyInvitation.Status.EXPIRED
             invitation.save(update_fields=["status", "updated_at"])
             raise ValueError("Cette invitation a expiré.")
-        if user.email.lower() != invitation.email.lower():
-            raise ValueError("Cette invitation est destinée à une autre adresse e-mail.")
+        identity_matches = (
+            invitation.channel == CompanyInvitation.Channel.EMAIL
+            and user.email
+            and user.email.lower() == invitation.email.lower()
+        ) or (
+            invitation.channel == CompanyInvitation.Channel.PHONE
+            and user.phone == invitation.phone
+        )
+        if not identity_matches:
+            raise ValueError("Cette invitation est destinée à un autre compte.")
         membership, _ = Membership.objects.update_or_create(
             company=invitation.company,
             user=user,

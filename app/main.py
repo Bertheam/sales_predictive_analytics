@@ -67,12 +67,6 @@ ml_quality_page = st.Page(
     icon="🧪",
     url_path="qualite-ml",
 )
-data_import_page = st.Page(
-    "pages/data_import.py",
-    title="Import de données",
-    icon="📥",
-    url_path="import-donnees",
-)
 inventory_page = st.Page(
     "pages/inventory.py",
     title="Stocks et réceptions",
@@ -90,7 +84,7 @@ navigation = st.navigation(
     {
         "Décider": [dashboard_page, decisions_page],
         "Prévoir": [future_forecasts_page, forecasts_page, ml_quality_page],
-        "Opérations": [inventory_page, data_import_page],
+        "Opérations": [inventory_page],
         "Aide": [help_page],
     }
 )

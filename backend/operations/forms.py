@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django import forms
-from django.forms import formset_factory
+from django.forms import BaseFormSet, formset_factory
 from django.utils import timezone
 
 
@@ -72,6 +72,38 @@ class StyledForm(forms.Form):
         if phone and len(digits) < 8:
             raise forms.ValidationError("Renseignez un numéro contenant au moins 8 chiffres.")
         return phone or None
+
+
+class DataImportUploadForm(StyledForm):
+    IMPORT_CHOICES = (
+        ("SALES", "Ventes"),
+        ("STOCKS", "Stocks journaliers"),
+        ("PRODUCTS", "Produits"),
+        ("CUSTOMERS", "Clients"),
+    )
+    MAX_FILE_SIZE = 20 * 1024 * 1024
+
+    import_type = forms.ChoiceField(
+        label="Données à importer",
+        choices=IMPORT_CHOICES,
+    )
+    excel_file = forms.FileField(
+        label="Fichier Excel",
+        help_text="Format XLSX uniquement · 20 Mo maximum.",
+        widget=forms.FileInput(attrs={"accept": ".xlsx"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.apply_style()
+
+    def clean_excel_file(self):
+        uploaded_file = self.cleaned_data["excel_file"]
+        if not uploaded_file.name.lower().endswith(".xlsx"):
+            raise forms.ValidationError("Choisissez un fichier Excel au format XLSX.")
+        if uploaded_file.size > self.MAX_FILE_SIZE:
+            raise forms.ValidationError("Ce fichier dépasse la taille maximale de 20 Mo.")
+        return uploaded_file
 
 
 class CustomerForm(StyledForm):
@@ -236,9 +268,27 @@ class MovementForm(StyledForm):
         return value
 
 
+class BaseDynamicItemFormSet(BaseFormSet):
+    deletion_widget = forms.HiddenInput
+
+
 SaleItemFormSet = formset_factory(
-    SaleItemForm, extra=4, max_num=20, validate_max=True
+    SaleItemForm,
+    formset=BaseDynamicItemFormSet,
+    extra=0,
+    min_num=1,
+    max_num=20,
+    can_delete=True,
+    validate_min=True,
+    validate_max=True,
 )
 ReceiptItemFormSet = formset_factory(
-    ReceiptItemForm, extra=4, max_num=20, validate_max=True
+    ReceiptItemForm,
+    formset=BaseDynamicItemFormSet,
+    extra=0,
+    min_num=1,
+    max_num=20,
+    can_delete=True,
+    validate_min=True,
+    validate_max=True,
 )

@@ -55,8 +55,8 @@ class DashboardViewTests(TestCase):
         }
         response = self.client.get(reverse("dashboard:home"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "3 / 3")
-        self.assertNotContains(response, "NOUVEL ESPACE")
+        self.assertContains(response, "1 produit à vérifier")
+        self.assertNotContains(response, "Préparez votre dépôt")
         self.assertContains(response, reverse("operations:sales"))
 
     @patch("dashboard.views.get_activity_dashboard")
@@ -66,7 +66,7 @@ class DashboardViewTests(TestCase):
             response = self.client.get(reverse("dashboard:activity"))
         self.assertEqual(response.status_code, 200)
         service.assert_called_once_with(self.company.id, date(2026, 7, 8), date(2026, 8, 6))
-        self.assertContains(response, "Tableau de bord")
+        self.assertContains(response, "Analyse des ventes")
         self.assertContains(response, "Meilleurs produits")
 
     def _activity_data(self):

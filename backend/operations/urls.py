@@ -4,6 +4,22 @@ from . import views
 
 app_name = "operations"
 urlpatterns = [
+    path("import-excel/", views.data_import, name="data-import"),
+    path(
+        "import-excel/modele/<str:import_type>/",
+        views.data_import_template,
+        name="data-import-template",
+    ),
+    path(
+        "import-excel/<uuid:pending_id>/confirmer/",
+        views.data_import_confirm,
+        name="data-import-confirm",
+    ),
+    path(
+        "import-excel/<uuid:pending_id>/annuler/",
+        views.data_import_cancel,
+        name="data-import-cancel",
+    ),
     path("produits/", views.products, name="products"),
     path("produits/nouveau/", views.product_create, name="product-create"),
     path("produits/<uuid:product_id>/modifier/", views.product_edit, name="product-edit"),

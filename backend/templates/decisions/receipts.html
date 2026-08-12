@@ -1,0 +1,15 @@
+{% extends "base_app.html" %}
+{% load listing_tags %}
+{% block title %}Réceptions fournisseurs · NexaStock{% endblock %}
+{% block content %}
+{% url 'operations:receipt-create' as receipt_create_url %}{% with procurement_receipt_url=receipt_create_url|add:"?next=approvisionnement" %}{% if can_manage %}{% include "components/page_header.html" with eyebrow="Approvisionnement · Étape 3" title="Réceptions" subtitle="Les livraisons réellement entrées dans le stock." action_href=procurement_receipt_url action_label="Réception sans commande" action_icon="package-plus" only %}{% else %}{% include "components/page_header.html" with eyebrow="Approvisionnement · Étape 3" title="Réceptions" subtitle="Les livraisons réellement entrées dans le stock." only %}{% endif %}{% endwith %}
+{% include "decisions/_procurement_tabs.html" with active_tab="receipts" %}
+
+<div class="receipt-order-notice compact"><span><i data-lucide="circle-check" class="ui-icon" aria-hidden="true"></i></span><div><strong>Une réception est un mouvement réel.</strong><p>Contrairement à une recommandation ou une commande, elle augmente le stock du dépôt.</p></div></div>
+
+<section class="panel data-panel">
+  <div class="panel-heading"><div><span class="eyebrow">Historique</span><h2>Réceptions enregistrées</h2></div><span class="date-chip">{{ page_obj.paginator.count }} réception{{ page_obj.paginator.count|pluralize }}</span></div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>Réception</th><th>Date</th><th>Fournisseur</th><th>Produits</th><th>Quantité</th><th>Montant</th><th>Commande liée</th></tr></thead><tbody>{% for receipt in receipts %}<tr><td><strong>{{ receipt.receipt_number }}</strong></td><td>{{ receipt.receipt_date|date:"d/m/Y" }}</td><td>{{ receipt.supplier_name }}</td><td>{{ receipt.item_count }}</td><td>{{ receipt.quantity|floatformat:0 }} colis</td><td>{{ receipt.total_amount|floatformat:"0g" }} FCFA</td><td>{% if receipt.order %}<a href="{% url 'decisions:order-detail' receipt.order.id %}" class="row-action">{{ receipt.order.order_number }}</a>{% else %}<span class="muted">Réception directe</span>{% endif %}</td></tr>{% empty %}<tr><td colspan="7">{% include "components/empty_state.html" with icon="package-plus" title="Aucune réception" description="Les livraisons confirmées apparaîtront ici." only %}</td></tr>{% endfor %}</tbody></table></div>
+  {% if page_obj.paginator.num_pages > 1 %}<nav class="simple-pagination" aria-label="Pagination des réceptions">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}"><i data-lucide="chevron-left" class="ui-icon" aria-hidden="true"></i> Précédent</a>{% endif %}<span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Suivant <i data-lucide="chevron-right" class="ui-icon" aria-hidden="true"></i></a>{% endif %}</nav>{% endif %}
+</section>
+{% endblock %}

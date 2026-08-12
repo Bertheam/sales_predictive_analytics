@@ -15,7 +15,16 @@ STATUS_LABELS = {
     "INACTIVE": "Inactif",
     "ARCHIVED": "Archivé",
     "PENDING": "En attente",
+    "DRAFT": "Brouillon",
+    "SENT": "Envoyée",
+    "APPROVED": "Intégré à une commande",
+    "PARTIALLY_RECEIVED": "Partiellement reçue",
+    "RECEIVED": "Réceptionnée",
     "COMPLETED": "Terminée",
+    "PARTIALLY_COMPLETED": "Terminée avec alertes",
+    "IMPORTING": "Import en cours",
+    "VALIDATING": "Vérification en cours",
+    "VALIDATED": "Vérifiée",
     "SUCCESS": "Terminée",
     "FAILED": "Échec",
     "CRITICAL": "Critique",
@@ -26,8 +35,12 @@ STATUS_LABELS = {
 
 STATUS_VARIANTS = {
     "PAID": "success", "SUCCESS": "success", "COMPLETED": "success",
+    "PARTIALLY_COMPLETED": "warning", "IMPORTING": "warning",
+    "VALIDATING": "warning", "VALIDATED": "success",
     "ACTIVE": "success", "UNPAID": "warning", "PARTIAL": "warning",
-    "PENDING": "warning", "HIGH": "warning", "MEDIUM": "warning",
+    "PENDING": "warning", "DRAFT": "neutral", "SENT": "warning",
+    "APPROVED": "success", "PARTIALLY_RECEIVED": "warning",
+    "RECEIVED": "success", "HIGH": "warning", "MEDIUM": "warning",
     "CANCELLED": "danger", "FAILED": "danger", "CRITICAL": "danger",
 }
 
@@ -94,3 +107,19 @@ def status_label(value):
 @register.filter
 def status_variant(value):
     return STATUS_VARIANTS.get(str(value or "").upper(), "neutral")
+
+
+@register.filter
+def business_name(value):
+    """Keep internal codes out of task-first headings while preserving stored labels."""
+    return str(value or "").split(" · ", 1)[0]
+
+
+@register.filter
+def import_type_label(value):
+    return {
+        "SALES": "Ventes",
+        "STOCKS": "Stocks journaliers",
+        "PRODUCTS": "Produits",
+        "CUSTOMERS": "Clients",
+    }.get(str(value or "").upper(), value or "—")

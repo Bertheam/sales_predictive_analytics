@@ -30,7 +30,7 @@ Suivi de la qualité prédictive
 - Historique et évaluation des prévisions après leur échéance.
 - Recommandations de stock, risques de rupture et priorités de commande.
 - Réceptions fournisseurs et mouvements de stock transactionnels.
-- Import Excel guidé des ventes, stocks, produits et clients.
+- Import Excel natif dans Django, guidé pour les ventes, stocks, produits et clients.
 - Validation des références, doublons, champs obligatoires et règles métier.
 - Génération automatique des codes internes et numéros de mouvements.
 - Tableau de bord de qualité ML et détection de dérive.
@@ -940,9 +940,10 @@ http://localhost:8501
 
 ## Comptes, dépôts et rôles
 
-L'authentification Django utilise l'adresse e-mail. Un utilisateur peut appartenir
-à plusieurs dépôts, mais chaque requête est rattachée à un dépôt actif contrôlé
-côté serveur. Les rôles disponibles sont :
+L'authentification Django accepte l'adresse e-mail ou le numéro de téléphone.
+Un membre invité par téléphone n'a donc pas besoin d'une fausse adresse e-mail.
+Un utilisateur peut appartenir à plusieurs dépôts, mais chaque requête est
+rattachée à un dépôt actif contrôlé côté serveur. Les rôles disponibles sont :
 
 - **Propriétaire** : contrôle complet du dépôt ;
 - **Administrateur** : gestion opérationnelle du dépôt, des ventes et du stock ;
@@ -990,7 +991,7 @@ Après connexion et sélection du dépôt, Django expose les écrans métier sui
 | `/fournisseurs/` | Fournisseurs et historique d'approvisionnement | Tous les membres actifs |
 | `/fournisseurs/nouveau/` | Création d'un fournisseur | Propriétaire, administrateur |
 | `/depots/gestion/` | Modification, archivage et restauration des dépôts | Lecture des dépôts accessibles ; actions réservées au propriétaire |
-| `/depots/equipe/` | Membres, rôles et invitations | Propriétaire, administrateur |
+| `/depots/equipe/` | Membres, rôles et invitations par téléphone ou e-mail | Propriétaire, administrateur |
 | `/stocks/` | Stocks, réceptions récentes et journal des mouvements | Tous les membres actifs |
 | `/stocks/reception/nouvelle/` | Saisie d'une réception fournisseur | Propriétaire, administrateur |
 | `/stocks/mouvement/nouveau/` | Saisie d'un mouvement manuel | Propriétaire, administrateur |
@@ -1011,15 +1012,22 @@ PostgreSQL et ne figurent pas dans les formulaires. Le téléphone d'un client e
 unique dans un dépôt lorsqu'il est renseigné ; le nom normalisé d'un fournisseur
 actif est également unique dans son dépôt.
 
-La gestion d'équipe permet d'inviter un collaborateur par e-mail avec un rôle
-`ADMIN`, `ANALYST` ou `VIEWER`. Le lien expire après 3 jours et seul son hash est
+La gestion d'équipe permet d'inviter un collaborateur par téléphone ou par
+e-mail avec un rôle `ADMIN`, `ANALYST` ou `VIEWER`. Pour un téléphone, NexaStock
+affiche un lien à copier et à partager par SMS ou WhatsApp ; pour un e-mail,
+l'envoi est confié à Celery. Le lien expire après 3 jours et seul son hash est
 conservé en base. Une invitation n'accorde aucun accès avant son acceptation.
+Le collaborateur choisit son mot de passe puis se connecte avec le même numéro
+ou la même adresse.
 Seul le propriétaire peut promouvoir ou gérer un administrateur ; un
 administrateur peut gérer les analystes et les comptes en consultation. Le
 propriétaire et l'utilisateur courant sont protégés contre une suspension
 accidentelle depuis leur propre session.
 
-Les ventes, réceptions et mouvements manuels sont désormais saisis dans Django.
+La nouvelle vente commence avec une seule ligne. Le bouton **Ajouter un
+produit** crée uniquement les lignes supplémentaires nécessaires, jusqu'à 20
+produits. Les ventes, réceptions et mouvements manuels sont désormais saisis
+dans Django.
 Chaque écriture métier et sa variation de stock sont enregistrées dans une même
 transaction PostgreSQL. Une vente ou une réception validée n'est pas réécrite :
 ses informations administratives peuvent être modifiées, tandis qu'une
@@ -1053,12 +1061,23 @@ design system sont décrites dans
 La politique et les événements du journal d’audit sont documentés dans
 [`docs/AUDIT_LOGS.md`](docs/AUDIT_LOGS.md).
 
-### Réapprovisionnement prédictif Django
+### Approvisionnement prédictif Django
 
-La page **Réapprovisionnement** transforme les dernières prévisions persistées
-en décisions métier par dépôt. Pour chaque produit, elle présente le stock
-actuel, les scénarios P50/P80/P90, le risque de rupture, la date probable
-d'épuisement et la quantité conseillée :
+Le menu **Approvisionnement** constitue un parcours unique en trois étapes. Il
+évite de disperser les recommandations, les commandes et les entrées de stock
+dans plusieurs menus :
+
+```text
+1. Recommandations  → ce que NexaStock conseille
+2. Commandes        → ce qui est préparé puis envoyé au fournisseur
+3. Réceptions       → ce qui a réellement été livré et ajouté au stock
+```
+
+L'étape **Recommandations** transforme les dernières prévisions persistées en
+décisions métier par dépôt. Pour chaque produit, elle présente le stock actuel,
+les ventes probables, la marge de prudence, le risque de rupture et la quantité
+conseillée. Le détail technique reste replié pour ne pas surcharger
+l'utilisateur :
 
 ```text
 quantité à préparer = demande prudente P90
@@ -1066,11 +1085,27 @@ quantité à préparer = demande prudente P90
                     - stock disponible
 ```
 
-Le propriétaire ou un administrateur peut enregistrer un plan brouillon avec
-un fournisseur et une quantité ajustable. Ce brouillon n'augmente jamais le
-stock : seule la saisie ultérieure d'une réception réelle crée les mouvements
-d'entrée. La création et la modification du plan sont isolées par dépôt et
-enregistrées dans le journal d'audit.
+Le propriétaire ou un administrateur peut enregistrer un plan avec un
+fournisseur et une quantité ajustable. Les plans d'un même fournisseur peuvent
+ensuite être regroupés dans une commande. Une commande suit les statuts
+**Brouillon**, **Envoyée**, **Partiellement reçue**, **Réceptionnée** ou
+**Annulée**.
+
+Une recommandation n'est jamais obligatoire. Dans l'onglet **Commandes**, le
+bouton **Nouvelle commande** permet de choisir librement un fournisseur et
+n'importe quel produit actif. Les commandes recommandées et les commandes
+libres utilisent ensuite le même suivi et le même parcours de réception.
+
+Une recommandation ou une commande n'augmente jamais le stock. Seule la
+validation d'une **réception** crée la réception fournisseur, les mouvements
+d'entrée et le nouveau stock journalier. Une livraison partielle conserve le
+reliquat dans la commande. Une livraison reçue sans commande préalable peut
+aussi être saisie depuis l'onglet Réceptions.
+
+Toutes ces actions sont isolées par dépôt et les créations, envois,
+annulations et réceptions sont enregistrés dans le journal d'audit. La
+description technique complète est disponible dans
+[`docs/PROCUREMENT_WORKFLOW.md`](docs/PROCUREMENT_WORKFLOW.md).
 
 L'archivage d'un dépôt est logique : ses ventes, stocks, prévisions et journaux
 sont conservés. Le dépôt reste visible dans **Mes dépôts** pour son propriétaire
@@ -1104,13 +1139,20 @@ séparée du `Dockerfile`; Node.js n’est pas conservé dans l’image Python f
 
 ### Avec des données réelles
 
-1. Aller dans **Import de données**.
+1. Dans l'application Django, ouvrir **Gestion → Import Excel**.
 2. Choisir le type de données.
 3. Télécharger le modèle Excel guidé.
 4. Compléter uniquement les champs demandés.
-5. Charger le fichier et lancer l'analyse.
-6. Corriger les lignes invalides ou importer seulement les lignes valides.
-7. Consulter l'historique du lot d'import.
+5. Charger le fichier et cliquer sur **Vérifier le fichier**.
+6. Contrôler les lignes valides, les erreurs et les doublons avant de confirmer.
+7. Corriger les lignes invalides ou choisir d'importer seulement les lignes valides.
+8. Consulter l'historique du lot d'import.
+
+Ce parcours est entièrement intégré à Django : les boutons **Importer Excel**
+des pages Ventes, Stocks, Produits et Clients n'ouvrent pas Streamlit. Seuls le
+propriétaire et l'administrateur peuvent importer. Le fichier vérifié est gardé
+temporairement pendant 30 minutes, isolé par dépôt et par utilisateur, puis
+supprimé après confirmation, annulation ou expiration.
 
 L'ordre conseillé pour une première alimentation est :
 
@@ -1174,14 +1216,38 @@ manière itérative afin de recalculer les retards à chaque nouvelle journée.
 
 ## Contrôles utiles pour le développement
 
-Vérifier que les modules Python se compilent :
+Vérifier rapidement la syntaxe et la cohérence des migrations :
 
 ```bash
 python -m compileall -q app alembic backend
 DJANGO_USE_SQLITE=true DJANGO_DEBUG=true \
-  python backend/manage.py test accounts companies operations api
-DJANGO_USE_SQLITE=true DJANGO_DEBUG=true \
   python backend/manage.py makemigrations --check --dry-run
+```
+
+Pour valider exactement l'image utilisée en production, privilégiez Docker :
+
+```bash
+docker compose build web
+docker compose up -d db
+docker compose run --rm --no-deps -e INITIALIZE_DATABASE=false \
+  web python backend/manage.py check
+docker compose run --rm --no-deps -e INITIALIZE_DATABASE=false \
+  web python backend/manage.py makemigrations --check --dry-run
+docker compose run --rm --no-deps -e INITIALIZE_DATABASE=false \
+  web python backend/manage.py test \
+  accounts audit forecasting companies.tests.TeamManagementTests \
+  operations.tests.DataImportWorkflowTests decisions \
+  dashboard.tests.PercentageChangeTests
+```
+
+Ces tests sont autonomes. Les vues qui interrogent directement les tables
+métier historiques (`sales`, `products`, etc.) se vérifient ensuite avec le
+schéma PostgreSQL/Alembic réellement initialisé :
+
+```bash
+docker compose up -d web
+docker compose exec web python -c \
+  "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health/').read().decode())"
 ```
 
 Afficher l'état des migrations :

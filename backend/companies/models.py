@@ -72,6 +72,10 @@ class Membership(models.Model):
 
 
 class CompanyInvitation(models.Model):
+    class Channel(models.TextChoices):
+        EMAIL = "EMAIL", "E-mail"
+        PHONE = "PHONE", "Téléphone"
+
     class Status(models.TextChoices):
         PENDING = "PENDING", "En attente"
         ACCEPTED = "ACCEPTED", "Acceptée"
@@ -89,7 +93,11 @@ class CompanyInvitation(models.Model):
     company = models.ForeignKey(
         Company, on_delete=models.CASCADE, related_name="invitations"
     )
-    email = models.EmailField()
+    channel = models.CharField(
+        max_length=10, choices=Channel.choices, default=Channel.EMAIL
+    )
+    email = models.EmailField(null=True, blank=True)
+    phone = models.CharField(max_length=20, null=True, blank=True)
     token_hash = models.CharField(max_length=64, unique=True, editable=False)
     role = models.CharField(
         max_length=12,
@@ -140,11 +148,16 @@ class CompanyInvitation(models.Model):
                 name="invitation_company_status_idx",
             ),
             models.Index(fields=["email", "status"], name="invitation_email_status_idx"),
+            models.Index(fields=["phone", "status"], name="invitation_phone_status_idx"),
         ]
 
     @property
     def is_expired(self):
         return self.expires_at <= timezone.now()
 
+    @property
+    def recipient(self):
+        return self.email or self.phone or ""
+
     def __str__(self):
-        return f"{self.email} · {self.company} · {self.get_role_display()}"
+        return f"{self.recipient} · {self.company} · {self.get_role_display()}"

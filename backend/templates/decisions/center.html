@@ -1,44 +1,43 @@
 {% extends "base_app.html" %}
 {% load listing_tags %}
-{% block title %}Réapprovisionnement · NexaStock{% endblock %}
+{% block title %}Approvisionnement · NexaStock{% endblock %}
 {% block content %}
-<section class="relative mb-6 overflow-hidden rounded-[28px] bg-[radial-gradient(circle_at_85%_15%,rgba(72,213,158,.24),transparent_28%),linear-gradient(135deg,#102a22,#071813)] px-6 py-8 text-white shadow-[0_24px_60px_rgba(13,45,35,.18)] sm:px-9 sm:py-10">
-  <span class="inline-flex rounded-full bg-emerald-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.18em] text-emerald-200">Décider</span>
-  <h1 class="mt-4 max-w-3xl text-3xl font-black tracking-[-.04em] sm:text-4xl">Commandez au bon moment, dans les bonnes quantités.</h1>
-  <p class="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/70">Les prévisions et le stock actuel sont transformés en priorités directement exploitables.</p>
-</section>
+  <section class="page-heading calm-page-heading">
+    <div><span class="eyebrow">Décider et agir</span><h1>Approvisionnement</h1><p>De la recommandation jusqu’à l’entrée réelle en stock.</p></div>
+    <a class="quiet-link" href="{% url 'forecasting:jobs' %}">Préparer une prévision <i data-lucide="arrow-right" class="ui-icon" aria-hidden="true"></i></a>
+  </section>
 
-<section class="mini-metric-grid">
-  <article><small>Demande prévue</small><strong>{{ summary.predicted_quantity|floatformat:"0g" }} <em>colis</em></strong></article>
-  <article><small>CA prévisionnel</small><strong>{{ summary.predicted_revenue|floatformat:"0g" }} <em>FCFA</em></strong></article>
-  <article><small>Produits à risque</small><strong>{{ summary.products_at_risk }}</strong></article>
-  <article><small>À réapprovisionner</small><strong>{{ summary.products_to_restock }}</strong></article>
-</section>
+  {% include "decisions/_procurement_tabs.html" with active_tab="recommendations" %}
 
-{% if summary.forecasted_products < summary.active_products %}<div class="freshness-banner is-stale"><span class="freshness-banner__icon">!</span><div><strong>Couverture partielle</strong><p>{{ summary.forecasted_products }} produit{{ summary.forecasted_products|pluralize }} prévu{{ summary.forecasted_products|pluralize }} sur {{ summary.active_products }} actif{{ summary.active_products|pluralize }}.</p></div><a href="{% url 'forecasting:jobs' %}">Compléter les prévisions →</a></div>{% endif %}
+  <section class="decision-at-a-glance">
+    <div class="decision-at-a-glance__lead"><span><i data-lucide="package-search" class="ui-icon" aria-hidden="true"></i></span><p><small>À traiter</small><strong>{{ summary.products_to_restock }} produit{{ summary.products_to_restock|pluralize }} à commander</strong></p></div>
+    <div><small>Produits à risque</small><strong>{{ summary.products_at_risk }}</strong></div>
+    <div><small>Ventes probables · 7 jours</small><strong>{{ summary.predicted_quantity|floatformat:"0g" }} <em>colis</em></strong></div>
+  </section>
 
-<section class="panel data-panel mb-6">
-  <form method="get" class="filter-bar flex flex-col gap-3 lg:flex-row lg:items-end">
-    <div class="filter-field filter-field--search"><label for="decision-search">Recherche</label><span class="search-field"><span>⌕</span><input id="decision-search" name="q" value="{{ filters.q }}" placeholder="Produit ou code"></span></div>
-    <div class="filter-field"><label for="decision-risk">Risque</label><select id="decision-risk" name="risk"><option value="">Tous les risques</option>{% for risk in risks %}<option value="{{ risk }}"{% if filters.risk == risk %} selected{% endif %}>{{ risk }}</option>{% endfor %}</select></div>
-    <div class="filter-field"><label for="decision-category">Catégorie</label><select id="decision-category" name="category"><option value="">Toutes les catégories</option>{% for category in categories %}<option value="{{ category }}"{% if filters.category == category %} selected{% endif %}>{{ category }}</option>{% endfor %}</select></div>
-    {% include "components/button.html" with type="submit" label="Filtrer" variant="dark" extra_classes="filter-submit" only %}
-  </form>
-</section>
+  {% if summary.forecasted_products < summary.active_products %}<div class="data-readiness is-stale"><span><i data-lucide="triangle-alert" class="ui-icon" aria-hidden="true"></i></span><p><strong>Certains produits ne sont pas encore analysés</strong><small>{{ summary.forecasted_products }} sur {{ summary.active_products }} disposent d’une prévision.</small></p><a href="{% url 'forecasting:jobs' %}">Compléter</a></div>{% endif %}
 
-<div class="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,.65fr)]">
-  <section>
-    <div class="mb-4"><span class="eyebrow">Priorités</span><h2 class="mt-1 text-2xl font-black">Produits à surveiller</h2></div>
-    <div class="grid gap-3">
+  <section class="panel decision-filter-panel" aria-label="Filtres des recommandations">
+    <form method="get" class="filter-bar flex flex-col gap-3 lg:flex-row lg:items-end">
+      <div class="filter-field filter-field--search"><label for="decision-search">Produit</label><span class="search-field"><span><i data-lucide="search" class="ui-icon" aria-hidden="true"></i></span><input id="decision-search" name="q" value="{{ filters.q }}" placeholder="Nom ou code"></span></div>
+      <div class="filter-field"><label for="decision-risk">Priorité</label><select id="decision-risk" name="risk"><option value="">Toutes</option>{% for risk in risks %}<option value="{{ risk }}"{% if filters.risk == risk %} selected{% endif %}>{{ risk }}</option>{% endfor %}</select></div>
+      <div class="filter-field"><label for="decision-category">Catégorie</label><select id="decision-category" name="category"><option value="">Toutes</option>{% for category in categories %}<option value="{{ category }}"{% if filters.category == category %} selected{% endif %}>{{ category }}</option>{% endfor %}</select></div>
+      {% include "components/button.html" with type="submit" label="Afficher" variant="dark" extra_classes="filter-submit" only %}
+    </form>
+  </section>
+
+  <section class="priority-section">
+    <div class="section-title"><div><span class="eyebrow">Étape 1</span><h2>Produits à vérifier</h2></div><span>{{ recommendations|length }} produit{{ recommendations|length|pluralize }}</span></div>
+    <div class="priority-list">
       {% for item in recommendations %}
-      <a href="{% url 'decisions:product-detail' item.product_id %}" class="group grid gap-4 rounded-[20px] border border-line bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg motion-reduce:transform-none md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
-        <span class="grid h-11 w-11 place-items-center rounded-2xl {% if item.risk_level == 'CRITIQUE' %}bg-red-100 text-red-700{% elif item.risk_level == 'ÉLEVÉ' %}bg-amber-100 text-amber-700{% elif item.risk_level == 'MOYEN' %}bg-blue-100 text-blue-700{% else %}bg-emerald-100 text-emerald-700{% endif %} font-black">{{ forloop.counter }}</span>
-        <div><div class="flex flex-wrap items-center gap-2"><strong>{{ item.product_name }}</strong><span class="status-badge {% if item.risk_level == 'CRITIQUE' %}danger{% elif item.risk_level == 'ÉLEVÉ' or item.risk_level == 'MOYEN' %}warning{% else %}success{% endif %}">{{ item.risk_level }}</span>{% if item.draft %}<span class="status-badge neutral">Plan préparé</span>{% endif %}</div><p class="mt-1 text-xs text-muted">Stock {{ item.current_stock|floatformat:0 }} · Ventes les plus probables {{ item.predicted_quantity|floatformat:0 }} · Scénario prudent {{ item.p90_quantity|floatformat:0 }} colis</p></div>
-        <div class="md:text-right"><small class="block text-[10px] font-bold uppercase text-muted">À commander</small><strong class="mt-1 block text-xl text-brand-700">{{ item.recommended_order|floatformat:0 }} colis</strong></div>
-      </a>
-      {% empty %}{% include "components/empty_state.html" with icon="◎" title="Aucune recommandation disponible" description="Générez d’abord une prévision pour au moins un produit actif." only %}{% endfor %}
+        <a href="{% url 'decisions:product-detail' item.product_id %}" class="priority-item{% if item.recommended_order <= 0 %} is-safe{% endif %}">
+          <span class="priority-rank">{{ forloop.counter }}</span>
+          <div class="priority-copy"><div><strong>{{ item.product_name }}</strong><span class="status-badge {% if item.risk_level == 'CRITIQUE' %}danger{% elif item.risk_level == 'ÉLEVÉ' or item.risk_level == 'MOYEN' %}warning{% else %}success{% endif %}">{{ item.risk_level }}</span></div><small>Stock actuel : {{ item.current_stock|floatformat:0 }} · Ventes probables : {{ item.predicted_quantity|floatformat:0 }} colis</small></div>
+          <div class="priority-action">{% if item.recommended_order > 0 %}<small>Commander</small><strong>{{ item.recommended_order|floatformat:0 }} colis</strong>{% else %}<strong class="safe-copy">Stock suffisant</strong>{% endif %}<span><i data-lucide="arrow-right" class="ui-icon" aria-hidden="true"></i></span></div>
+        </a>
+      {% empty %}{% include "components/empty_state.html" with icon="check" title="Rien à commander pour le moment" description="Aucune priorité ne correspond à vos filtres." only %}{% endfor %}
     </div>
   </section>
-  <aside class="rounded-[22px] border border-line bg-white p-5 shadow-sm sm:p-6"><span class="eyebrow">Alertes</span><h2 class="mt-1 text-xl font-black">À traiter maintenant</h2><div class="mt-5 grid gap-3">{% for alert in alerts|slice:":6" %}<article class="rounded-2xl border border-line p-4"><div class="flex items-center justify-between gap-2"><strong class="text-xs">{{ alert.alert_type }}</strong><span class="status-badge {{ alert.severity|status_variant }}">{{ alert.severity|status_label }}</span></div><p class="mt-2 text-xs font-bold">{{ alert.product_name }}</p><p class="mt-1 text-[11px] leading-4 text-muted">{{ alert.message }}</p></article>{% empty %}<p class="text-sm text-muted">Aucune alerte active.</p>{% endfor %}</div></aside>
-</div>
+
+  {% if alerts %}<details class="advanced-drawer alert-drawer"><summary><span><strong>Voir les autres alertes ({{ alerts|length }})</strong><small>Informations complémentaires</small></span><b><i data-lucide="chevron-down" class="ui-icon" aria-hidden="true"></i></b></summary><div class="advanced-drawer__content alert-list">{% for alert in alerts %}<article><div><strong>{{ alert.product_name }}</strong><span class="status-badge {{ alert.severity|status_variant }}">{{ alert.severity|status_label }}</span></div><p>{{ alert.message }}</p></article>{% endfor %}</div></details>{% endif %}
 {% endblock %}

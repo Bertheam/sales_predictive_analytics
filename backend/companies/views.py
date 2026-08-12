@@ -184,6 +184,10 @@ def team(request):
         "summary": summary,
         "invitation_form": InvitationForm(can_invite_admin=can_invite_admin),
         "can_invite_admin": can_invite_admin,
+        "phone_invitation_url": request.session.pop("phone_invitation_url", ""),
+        "phone_invitation_recipient": request.session.pop(
+            "phone_invitation_recipient", ""
+        ),
     })
 
 
@@ -207,7 +211,9 @@ def invite_member(request):
     try:
         invitation, raw_token = create_or_refresh_invitation(
             company=request.company,
+            channel=form.cleaned_data["channel"],
             email=form.cleaned_data["email"],
+            phone=form.cleaned_data["phone"],
             role=form.cleaned_data["role"],
             invited_by=request.user,
         )
@@ -217,11 +223,21 @@ def invite_member(request):
     accept_url = request.build_absolute_uri(
         reverse("companies:invitation-accept", args=[raw_token])
     )
-    queued = queue_company_invitation_email(
-        invitation=invitation, raw_token=raw_token, accept_url=accept_url
-    )
-    record_audit(request, action=AuditLog.Action.CREATE, resource_type="company_invitation", resource_id=invitation.id, description=f"Invitation de {invitation.email} comme {invitation.get_role_display()}.", metadata={"email": invitation.email, "role": invitation.role, "email_queued": queued})
-    if queued:
+    queued = False
+    if invitation.channel == CompanyInvitation.Channel.EMAIL:
+        queued = queue_company_invitation_email(
+            invitation=invitation, raw_token=raw_token, accept_url=accept_url
+        )
+    else:
+        request.session["phone_invitation_url"] = accept_url
+        request.session["phone_invitation_recipient"] = invitation.phone
+    record_audit(request, action=AuditLog.Action.CREATE, resource_type="company_invitation", resource_id=invitation.id, description=f"Invitation de {invitation.recipient} comme {invitation.get_role_display()}.", metadata={"channel": invitation.channel, "recipient": invitation.recipient, "role": invitation.role, "email_queued": queued})
+    if invitation.channel == CompanyInvitation.Channel.PHONE:
+        messages.success(
+            request,
+            "Accès créé. Copiez maintenant le lien et partagez-le au collaborateur.",
+        )
+    elif queued:
         messages.success(request, f"Invitation créée. L’envoi à {invitation.email} est en cours.")
     else:
         messages.warning(request, "Invitation créée, mais le service d’envoi est indisponible. Vous pourrez renvoyer le lien.")
@@ -251,18 +267,25 @@ def resend_invitation(request, invitation_id):
     accept_url = request.build_absolute_uri(
         reverse("companies:invitation-accept", args=[raw_token])
     )
-    queued = queue_company_invitation_email(
-        invitation=invitation, raw_token=raw_token, accept_url=accept_url
-    )
+    queued = False
+    if invitation.channel == CompanyInvitation.Channel.EMAIL:
+        queued = queue_company_invitation_email(
+            invitation=invitation, raw_token=raw_token, accept_url=accept_url
+        )
+    else:
+        request.session["phone_invitation_url"] = accept_url
+        request.session["phone_invitation_recipient"] = invitation.phone
     record_audit(
         request,
         action=AuditLog.Action.UPDATE,
         resource_type="company_invitation",
         resource_id=invitation.id,
-        description=f"Renvoi de l’invitation à {invitation.email}.",
-        metadata={"email": invitation.email, "role": invitation.role, "email_queued": queued},
+        description=f"Renouvellement de l’invitation de {invitation.recipient}.",
+        metadata={"channel": invitation.channel, "recipient": invitation.recipient, "role": invitation.role, "email_queued": queued},
     )
-    if queued:
+    if invitation.channel == CompanyInvitation.Channel.PHONE:
+        messages.success(request, "Un nouveau lien est prêt à être copié et partagé.")
+    elif queued:
         messages.success(request, "Un nouveau lien sécurisé a été mis en file d’envoi.")
     else:
         messages.warning(request, "Le lien a été renouvelé, mais sa mise en file a échoué. Réessayez plus tard.")
@@ -286,7 +309,7 @@ def revoke_invitation(request, invitation_id):
         return HttpResponseForbidden("Seul le propriétaire peut révoquer cette invitation.")
     invitation.status = CompanyInvitation.Status.REVOKED
     invitation.save(update_fields=["status", "updated_at"])
-    record_audit(request, action=AuditLog.Action.DELETE, resource_type="company_invitation", resource_id=invitation.id, description=f"Révocation de l’invitation envoyée à {invitation.email}.", metadata={"email": invitation.email, "role": invitation.role})
+    record_audit(request, action=AuditLog.Action.DELETE, resource_type="company_invitation", resource_id=invitation.id, description=f"Révocation de l’invitation de {invitation.recipient}.", metadata={"channel": invitation.channel, "recipient": invitation.recipient, "role": invitation.role})
     messages.success(request, "Invitation révoquée.")
     return redirect("companies:team")
 
@@ -319,8 +342,8 @@ def member_edit(request, membership_id):
         except ValueError as exc:
             form.add_error(None, str(exc))
         else:
-            record_audit(request, action=AuditLog.Action.UPDATE, resource_type="company_membership", resource_id=target.id, description=f"Modification du rôle de {target.user.email} : {previous_role} → {target.role}.", metadata={"user_id": target.user_id, "previous_role": previous_role, "new_role": target.role})
-            messages.success(request, f"Le rôle de {target.user.full_name or target.user.email} a été mis à jour.")
+            record_audit(request, action=AuditLog.Action.UPDATE, resource_type="company_membership", resource_id=target.id, description=f"Modification du rôle de {target.user.login_identifier} : {previous_role} → {target.role}.", metadata={"user_id": target.user_id, "previous_role": previous_role, "new_role": target.role})
+            messages.success(request, f"Le rôle de {target.user.full_name or target.user.login_identifier} a été mis à jour.")
             return redirect("companies:team")
     return render(request, "companies/member_edit.html", {"form": form, "member": target})
 
@@ -345,7 +368,7 @@ def member_access(request, membership_id):
     except ValueError as exc:
         messages.error(request, str(exc))
         return redirect("companies:team")
-    record_audit(request, action=AuditLog.Action.DELETE if suspended else AuditLog.Action.UPDATE, resource_type="company_membership", resource_id=target.id, description=(f"Suspension de l’accès de {target.user.email}." if suspended else f"Réactivation de l’accès de {target.user.email}."), metadata={"user_id": target.user_id, "status": target.status})
+    record_audit(request, action=AuditLog.Action.DELETE if suspended else AuditLog.Action.UPDATE, resource_type="company_membership", resource_id=target.id, description=(f"Suspension de l’accès de {target.user.login_identifier}." if suspended else f"Réactivation de l’accès de {target.user.login_identifier}."), metadata={"user_id": target.user_id, "status": target.status})
     messages.success(request, "Accès suspendu." if suspended else "Accès réactivé.")
     return redirect("companies:team")
 
@@ -359,13 +382,23 @@ def accept_invitation(request, token):
         return render(request, "companies/invitation_accept.html", {
             "invitation": invitation, "unavailable": True,
         }, status=410)
-    existing_user = get_user_model().objects.filter(
-        email__iexact=invitation.email
-    ).first()
+    existing_user = (
+        get_user_model().objects.filter(email__iexact=invitation.email).first()
+        if invitation.channel == CompanyInvitation.Channel.EMAIL
+        else get_user_model().objects.filter(phone=invitation.phone).first()
+    )
     if request.user.is_authenticated:
-        if request.user.email.lower() != invitation.email.lower():
+        identity_matches = (
+            invitation.channel == CompanyInvitation.Channel.EMAIL
+            and request.user.email
+            and request.user.email.lower() == invitation.email.lower()
+        ) or (
+            invitation.channel == CompanyInvitation.Channel.PHONE
+            and request.user.phone == invitation.phone
+        )
+        if not identity_matches:
             return render(request, "companies/invitation_accept.html", {
-                "invitation": invitation, "email_mismatch": True,
+                "invitation": invitation, "identity_mismatch": True,
             }, status=403)
         try:
             membership = accept_company_invitation(invitation, request.user)
@@ -380,12 +413,13 @@ def accept_invitation(request, token):
         login_url = f"{reverse('accounts:login')}?next={request.path}"
         return redirect(login_url)
     form = InvitationAcceptanceForm(
-        request.POST or None, email=invitation.email
+        request.POST or None, identifier=invitation.recipient
     )
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             user = get_user_model().objects.create_user(
                 email=invitation.email,
+                phone=invitation.phone,
                 full_name=form.cleaned_data["full_name"],
                 password=form.cleaned_data["password1"],
             )

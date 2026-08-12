@@ -32,6 +32,9 @@ class FutureForecastService:
     def get_forecast_results(self, forecast_id: str) -> list[dict]:
         return self.forecast_repository.get_forecast_results(forecast_id)
 
+    def get_product_stock(self, product_id: str) -> dict:
+        return self.product_repository.get_stock_snapshot(product_id)
+
     def generate_and_save(
         self,
         product_id: str,

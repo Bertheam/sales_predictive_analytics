@@ -33,6 +33,16 @@ class DecisionRepository:
                     SUM(fr.predicted_p50) AS predicted_p50,
                     SUM(fr.predicted_p80) AS predicted_p80,
                     SUM(fr.predicted_p90) AS predicted_p90,
+                    SQRT(SUM(POWER(GREATEST(
+                        COALESCE(NULLIF(fr.predicted_p80, 0), fr.predicted_quantity)
+                        - fr.predicted_quantity,
+                        0
+                    ), 2))) AS p80_safety_buffer,
+                    SQRT(SUM(POWER(GREATEST(
+                        COALESCE(NULLIF(fr.predicted_p90, 0), fr.upper_bound,
+                            fr.predicted_quantity) - fr.predicted_quantity,
+                        0
+                    ), 2))) AS p90_safety_buffer,
                     SUM(fr.lower_bound) AS lower_quantity,
                     SUM(fr.upper_bound) AS upper_quantity,
                     SQRT(
@@ -75,6 +85,8 @@ class DecisionRepository:
                 COALESCE(ft.upper_quantity, 0) AS upper_quantity,
                 COALESCE(ft.confidence_safety_stock, 0)
                     AS confidence_safety_stock,
+                COALESCE(ft.p80_safety_buffer, 0) AS p80_safety_buffer,
+                COALESCE(ft.p90_safety_buffer, 0) AS p90_safety_buffer,
                 COALESCE(ft.predicted_revenue, 0) AS predicted_revenue,
                 COALESCE(ft.persisted_stock_need, 0) AS persisted_stock_need,
                 COALESCE(stock.closing_stock, 0) AS current_stock,
