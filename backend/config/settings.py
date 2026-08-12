@@ -13,6 +13,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-development-only-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() in {"1", "true", "yes"}
 TESTING = "test" in sys.argv
+TEST_RUNNER = "config.test_runner.TenantPostgresTestRunner"
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
@@ -158,6 +159,9 @@ STREAMLIT_ACCESS_TOKEN_TTL_SECONDS = int(
 )
 AUDIT_TRUST_X_FORWARDED_FOR = os.getenv(
     "AUDIT_TRUST_X_FORWARDED_FOR", "false"
+).lower() in {"1", "true", "yes"}
+TENANT_USE_RUNTIME_ROLE = os.getenv(
+    "TENANT_USE_RUNTIME_ROLE", "false"
 ).lower() in {"1", "true", "yes"}
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")

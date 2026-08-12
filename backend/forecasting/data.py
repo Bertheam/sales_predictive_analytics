@@ -1,15 +1,13 @@
-from django.db import connection, transaction
+from django.db import connection
 from django.utils import timezone
+
+from companies.db import tenant_cursor
 
 
 def product_choices(company_id):
     if connection.vendor != "postgresql":
         return []
-    with transaction.atomic(), connection.cursor() as cursor:
-        cursor.execute(
-            "SELECT set_config('app.current_company_id', %s, TRUE)",
-            [str(company_id)],
-        )
+    with tenant_cursor(company_id) as cursor:
         cursor.execute(
             """
             SELECT id, name, code
@@ -29,11 +27,7 @@ def get_product_freshness(company_id, product_id):
     """Return the latest usable sale date for one company-owned product."""
     if connection.vendor != "postgresql":
         return {"exists": False, "last_sale_date": None, "age_days": None}
-    with transaction.atomic(), connection.cursor() as cursor:
-        cursor.execute(
-            "SELECT set_config('app.current_company_id', %s, TRUE)",
-            [str(company_id)],
-        )
+    with tenant_cursor(company_id) as cursor:
         cursor.execute(
             """
             SELECT p.name, MAX(s.sale_date)
@@ -69,11 +63,7 @@ def get_products_freshness(company_id):
     """Return sale freshness for every active product in one company query."""
     if connection.vendor != "postgresql":
         return {}
-    with transaction.atomic(), connection.cursor() as cursor:
-        cursor.execute(
-            "SELECT set_config('app.current_company_id', %s, TRUE)",
-            [str(company_id)],
-        )
+    with tenant_cursor(company_id) as cursor:
         cursor.execute(
             """
             SELECT p.id, p.name, MAX(s.sale_date)
@@ -109,11 +99,7 @@ def get_company_freshness(company_id):
     """Return a compact freshness indicator for the page header."""
     if connection.vendor != "postgresql":
         return {"last_sale_date": None, "age_days": None}
-    with transaction.atomic(), connection.cursor() as cursor:
-        cursor.execute(
-            "SELECT set_config('app.current_company_id', %s, TRUE)",
-            [str(company_id)],
-        )
+    with tenant_cursor(company_id) as cursor:
         cursor.execute(
             """
             SELECT MAX(sale_date)

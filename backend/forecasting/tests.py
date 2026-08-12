@@ -32,6 +32,14 @@ class ForecastInfrastructureTests(SimpleTestCase):
         finally:
             session.close()
 
+    def test_background_session_rejects_a_missing_or_invalid_company(self):
+        from app.database.session import session_for_company
+        from app.database.tenant import TenantContextError
+
+        for company_id in (None, "", "invalid-company"):
+            with self.subTest(company_id=company_id), self.assertRaises(TenantContextError):
+                session_for_company(company_id)
+
     def _evaluation(self, champion_mae=10, challenger_mae=9.6):
         rows = [
             {"model": "challenger", "label": "Challenger", "mae": challenger_mae, "rmse": 11, "mape": 20},

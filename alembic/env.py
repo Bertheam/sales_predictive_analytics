@@ -1,4 +1,5 @@
 from logging.config import fileConfig
+import os
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -12,7 +13,7 @@ from app.config.settings import settings
 config = context.config
 config.set_main_option(
     "sqlalchemy.url",
-    settings.database_url.replace("%", "%%"),
+    os.getenv("ALEMBIC_DATABASE_URL", settings.database_url).replace("%", "%%"),
 )
 
 # Interpret the config file for Python logging.

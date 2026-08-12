@@ -115,6 +115,11 @@ orchestrent les opérations, tandis que les repositories gèrent la persistance.
 La conception de l'évolution multi-entreprises est détaillée dans
 [`docs/MULTI_TENANT_ARCHITECTURE.md`](docs/MULTI_TENANT_ARCHITECTURE.md).
 
+Les prochains chantiers techniques sont suivis dans
+[`docs/PRODUCT_BACKLOGS.md`](docs/PRODUCT_BACKLOGS.md). La Série 7, destinée à
+la future application mobile, possède un cahier d'implémentation autonome dans
+[`docs/SERIE_7_API_MOBILE.md`](docs/SERIE_7_API_MOBILE.md).
+
 ## Prérequis
 
 - Git.
@@ -1236,14 +1241,17 @@ docker compose run --rm --no-deps -e INITIALIZE_DATABASE=false \
   web python backend/manage.py makemigrations --check --dry-run
 docker compose run --rm --no-deps -e INITIALIZE_DATABASE=false \
   web python backend/manage.py test \
-  accounts audit forecasting companies.tests.TeamManagementTests \
-  operations.tests.DataImportWorkflowTests decisions \
-  dashboard.tests.PercentageChangeTests
+  accounts companies dashboard operations decisions forecasting audit api
 ```
 
-Ces tests sont autonomes. Les vues qui interrogent directement les tables
-métier historiques (`sales`, `products`, etc.) se vérifient ensuite avec le
-schéma PostgreSQL/Alembic réellement initialisé :
+Le runner de tests crée une base PostgreSQL isolée, applique les migrations
+Django, initialise les tables métier historiques puis applique Alembic. Il
+refuse de préparer ce schéma si Django n'a pas réellement basculé sur une base
+de test. La commande couvre donc aussi les accès directs à `sales`, `products`,
+les contraintes inter-dépôts et les policies RLS, sans utiliser les données de
+développement.
+
+Pour vérifier ensuite le conteneur web réellement démarré :
 
 ```bash
 docker compose up -d web

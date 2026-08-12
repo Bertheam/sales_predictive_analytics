@@ -1,21 +1,15 @@
 from rest_framework.response import Response
-from rest_framework import status
 from rest_framework.views import APIView
 
 from companies.models import Company, Membership
 from dashboard.data import get_dashboard_snapshot
 from operations.data import product_catalog, sales_overview, stock_overview
 from .serializers import MembershipSerializer
+from .tenant import require_api_company
 
 
 def require_company(request):
-    company = getattr(request, "company", None)
-    if company:
-        return company, None
-    return None, Response(
-        {"detail": "Sélectionnez d'abord un dépôt actif."},
-        status=status.HTTP_409_CONFLICT,
-    )
+    return require_api_company(request)
 
 
 class MeView(APIView):
@@ -40,6 +34,10 @@ class CompanyListView(APIView):
 
 class ContextView(APIView):
     def get(self, request):
+        if request.headers.get("X-Company-ID"):
+            _, error = require_api_company(request)
+            if error:
+                return error
         company = getattr(request, "company", None)
         membership = getattr(request, "membership", None)
         return Response({

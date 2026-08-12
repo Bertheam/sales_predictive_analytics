@@ -67,3 +67,57 @@ class ApiTests(TestCase):
                 response = self.client.get(reverse(route))
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.json()["company_id"], str(self.company.pk))
+
+    def test_authorized_company_header_works_without_browser_session(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("api:products"),
+            HTTP_X_COMPANY_ID=str(self.company.id),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["company_id"], str(self.company.id))
+
+    def test_explicit_company_header_overrides_browser_session(self):
+        second = Company.objects.create(code="api-second", name="Second dépôt")
+        Membership.objects.create(
+            user=self.user,
+            company=second,
+            role=Membership.Role.VIEWER,
+            status=Membership.Status.ACTIVE,
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session["active_company_id"] = str(self.company.id)
+        session.save()
+
+        response = self.client.get(
+            reverse("api:products"),
+            HTTP_X_COMPANY_ID=str(second.id),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["company_id"], str(second.id))
+
+    def test_foreign_company_header_is_rejected_without_fallback(self):
+        foreign = Company.objects.create(code="api-foreign", name="Dépôt étranger")
+        self.client.force_login(self.user)
+        session = self.client.session
+        session["active_company_id"] = str(self.company.id)
+        session.save()
+
+        response = self.client.get(
+            reverse("api:products"),
+            HTTP_X_COMPANY_ID=str(foreign.id),
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "company_access_denied")
+
+    def test_invalid_company_header_is_rejected(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("api:products"),
+            HTTP_X_COMPANY_ID="invalid-company",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "invalid_company_context")

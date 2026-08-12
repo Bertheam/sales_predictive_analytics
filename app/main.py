@@ -2,7 +2,7 @@ import streamlit as st
 from sqlalchemy import text
 
 from app.database.session import SessionLocal
-from app.security.signed_access import require_signed_access
+from app.security.signed_access import require_signed_access, signed_access_is_authorized
 from app.utils.ui import apply_app_style, render_sidebar_brand
 
 
@@ -22,6 +22,7 @@ try:
             text("SELECT name FROM companies WHERE id = :company_id AND status = 'ACTIVE'"),
             {"company_id": access["company_id"]},
         ).scalar_one_or_none()
+        access_is_authorized = signed_access_is_authorized(tenant_db, access)
 except Exception as exc:
     st.error(
         "Le contexte du dépôt technique n'est pas disponible. "
@@ -32,6 +33,9 @@ except Exception as exc:
 
 if not tenant_name:
     st.error("Le dépôt configuré pour Streamlit est introuvable ou inactif.")
+    st.stop()
+if not access_is_authorized:
+    st.error("Votre accès à ce dépôt n’est plus autorisé. Revenez dans NexaStock.")
     st.stop()
 
 st.sidebar.caption(f"Dépôt analysé : **{tenant_name}**")

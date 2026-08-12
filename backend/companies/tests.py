@@ -54,10 +54,12 @@ class CompanyFlowTests(TestCase):
         self.assertRedirects(response, reverse("companies:onboarding"))
 
     def test_legacy_company_can_be_claimed_by_email(self):
-        legacy = Company.objects.create(
+        legacy, _ = Company.objects.update_or_create(
             id="00000000-0000-4000-8000-000000000001",
-            code="depot-historique",
-            name="Dépôt historique",
+            defaults={
+                "code": "depot-historique",
+                "name": "Dépôt historique",
+            },
         )
         output = StringIO()
         call_command("claim_legacy_company", self.user.email, stdout=output)

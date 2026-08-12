@@ -1,20 +1,10 @@
-from contextlib import contextmanager
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from django.db import connection, transaction
+from django.db import connection
 from django.utils import timezone
 
-
-@contextmanager
-def tenant_cursor(company_id):
-    with transaction.atomic(), connection.cursor() as cursor:
-        if connection.vendor == "postgresql":
-            cursor.execute(
-                "SELECT set_config('app.current_company_id', %s, TRUE)",
-                [str(company_id)],
-            )
-        yield cursor
+from companies.db import tenant_cursor
 
 
 def dict_rows(cursor):

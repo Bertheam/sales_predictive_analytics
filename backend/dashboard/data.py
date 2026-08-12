@@ -1,11 +1,11 @@
-from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db import connection, transaction
 from django.db.models import Count, DecimalField, Max, Min, OuterRef, Subquery, Sum, Value
 from django.db.models.functions import Coalesce, ExtractIsoWeekDay
+
+from companies.db import tenant_atomic
 
 from .models import DailyStock, Product, Sale, SaleItem
 
@@ -43,19 +43,6 @@ class DashboardSnapshot:
     current_stock: Decimal = ZERO
     risk_products: int = 0
     active_products: int = 0
-
-
-@contextmanager
-def tenant_orm_scope(company_id):
-    """Set the PostgreSQL RLS context while keeping all data reads in the ORM."""
-    with transaction.atomic():
-        if connection.vendor == "postgresql":
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT set_config('app.current_company_id', %s, TRUE)",
-                    [str(company_id)],
-                )
-        yield
 
 
 def percentage_change(current, previous):
@@ -137,7 +124,7 @@ def get_overview_snapshot(company_id, today):
     start_date = today - timedelta(days=6)
     previous_end = start_date - timedelta(days=1)
     previous_start = previous_end - timedelta(days=6)
-    with tenant_orm_scope(company_id):
+    with tenant_atomic(company_id):
         current = _period_totals(company_id, start_date, today)
         previous = _period_totals(company_id, previous_start, previous_end)
         current_stock = _stock_snapshot(company_id, today)
@@ -188,7 +175,7 @@ def get_overview_snapshot(company_id, today):
 
 def get_dashboard_snapshot(company_id) -> DashboardSnapshot:
     """Keep the historical API contract while using tenant-filtered ORM queries."""
-    with tenant_orm_scope(company_id):
+    with tenant_atomic(company_id):
         sales = Sale.objects.filter(company_id=company_id, deleted_at__isnull=True)
         bounds = sales.aggregate(min_date=Min("sale_date"), max_date=Max("sale_date"))
         totals = sales.aggregate(
@@ -269,7 +256,7 @@ def get_activity_dashboard(company_id, start_date, end_date):
     duration = (end_date - start_date).days + 1
     previous_end = start_date - timedelta(days=1)
     previous_start = previous_end - timedelta(days=duration - 1)
-    with tenant_orm_scope(company_id):
+    with tenant_atomic(company_id):
         current = _period_totals(company_id, start_date, end_date)
         previous = _period_totals(company_id, previous_start, previous_end)
         sales = Sale.objects.filter(

@@ -4,6 +4,13 @@ Statut : socle d'isolation implémenté le 02/08/2026
 Périmètre : authentification, entreprises, rôles, isolation des données et
 migration du schéma mono-entreprise existant.
 
+Mise à jour du 12/08/2026 : la résolution des accès est centralisée dans
+`companies.tenancy`, les transactions Django protégées dans `companies.db` et
+les sessions SQLAlchemy dans `app.database.session`. L’adaptateur `api.tenant`
+accepte un dépôt explicite vérifié via `X-Company-ID` tout en conservant la
+session du produit web. Les références principales des tables métier disposent
+également de clés étrangères composites `(company_id, id)`.
+
 ## 1. Objectif et invariant de sécurité
 
 La plateforme doit héberger plusieurs entreprises dans une seule base

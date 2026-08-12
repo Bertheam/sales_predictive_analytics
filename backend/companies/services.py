@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from accounts.identifiers import normalize_phone
 
+from .db import tenant_cursor
 from .models import Company, CompanyInvitation, Membership
 
 
@@ -85,11 +86,7 @@ def bootstrap_company_references(company_id) -> None:
     """Create the private reference data required by a new depot."""
     if connection.vendor != "postgresql":
         return
-    with transaction.atomic(), connection.cursor() as cursor:
-        cursor.execute(
-            "SELECT set_config('app.current_company_id', %s, TRUE)",
-            [str(company_id)],
-        )
+    with tenant_cursor(company_id) as cursor:
         cursor.executemany(
             """
             INSERT INTO product_categories (company_id, code, name, description)

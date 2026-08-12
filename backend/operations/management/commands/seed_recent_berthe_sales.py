@@ -9,6 +9,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 from django.utils import timezone
 
+from companies.db import tenant_cursor
 from companies.models import Company, Membership
 from operations.data import create_receipt, create_sale, operational_references
 
@@ -369,11 +370,7 @@ class Command(BaseCommand):
 
     @staticmethod
     def _seed_context(company_id):
-        with transaction.atomic(), connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT set_config('app.current_company_id', %s, TRUE)",
-                [str(company_id)],
-            )
+        with tenant_cursor(company_id) as cursor:
             cursor.execute(
                 """
                 SELECT MIN(sale_date)
@@ -425,11 +422,7 @@ class Command(BaseCommand):
 
     @staticmethod
     def _set_external_reference(company_id, sale_id, reference):
-        with transaction.atomic(), connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT set_config('app.current_company_id', %s, TRUE)",
-                [str(company_id)],
-            )
+        with tenant_cursor(company_id) as cursor:
             cursor.execute(
                 """
                 UPDATE sales SET external_reference = %s

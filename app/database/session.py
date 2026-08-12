@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config.settings import settings
+from app.database.tenant import normalize_company_id
 
 
 engine = create_engine(
@@ -42,7 +43,9 @@ def SessionLocal(company_id=None):
         if not access:
             raise RuntimeError("Aucun dépôt Streamlit authentifié.")
         company_id = access["company_id"]
-    return _SessionFactory(info={"company_id": company_id or settings.company_id})
+    return _SessionFactory(
+        info={"company_id": normalize_company_id(company_id or settings.company_id)}
+    )
 
 
 def session_for_company(company_id):
@@ -52,7 +55,7 @@ def session_for_company(company_id):
     tenant. Requiring the company identifier here prevents an asynchronous
     task from accidentally reading another depot's data.
     """
-    return _SessionFactory(info={"company_id": str(company_id)})
+    return _SessionFactory(info={"company_id": normalize_company_id(company_id)})
 
 
 def get_db_session():
