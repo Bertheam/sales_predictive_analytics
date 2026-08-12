@@ -4,7 +4,7 @@
 {% url 'decisions:orders' as orders_url %}{% include "components/page_header.html" with back_href=orders_url back_label="Retour aux commandes" eyebrow="Approvisionnement · Commande libre" title="Nouvelle commande" subtitle="Commandez n’importe quel produit actif, même sans recommandation de NexaStock." only %}
 {% include "decisions/_procurement_tabs.html" with active_tab="orders" %}
 <div class="receipt-order-notice compact"><span>i</span><div><strong>Cette commande est indépendante des prévisions.</strong><p>Elle ne modifiera le stock qu’au moment où vous validerez la réception réelle.</p></div></div>
-<form method="post" class="panel business-form" data-submit-lock>{% csrf_token %}
+<form method="post" class="panel business-form business-form--line-items" data-submit-lock>{% csrf_token %}
   {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
   <div class="form-section"><div><span class="step-badge">01</span><h2>Fournisseur</h2><p>Choisissez le partenaire et, si vous la connaissez, la date de livraison.</p></div><div class="form-grid">{% for field in form %}{% if field.name == 'notes' %}{% include "components/form_field.html" with field=field span_two=True only %}{% else %}{% include "components/form_field.html" with field=field only %}{% endif %}{% endfor %}</div></div>
   <div class="form-section"><div><span class="step-badge">02</span><h2>Produits à commander</h2><p>Commencez avec une ligne et ajoutez uniquement les produits nécessaires.</p></div><div class="dynamic-lines" data-dynamic-formset data-form-prefix="items">

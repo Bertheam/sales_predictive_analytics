@@ -175,6 +175,8 @@ class OperationAccessTests(TestCase):
         self.assertContains(response, "Ajouter un produit")
         self.assertContains(response, "data-dynamic-formset")
         self.assertContains(response, "data-remove-form-row")
+        self.assertContains(response, "business-form--line-items")
+        self.assertContains(response, "line-form sale-line")
 
     def test_new_receipt_starts_with_one_dynamic_product_line(self):
         response = self.client.get(reverse("operations:receipt-create"))
@@ -184,6 +186,8 @@ class OperationAccessTests(TestCase):
         self.assertContains(response, "Ajouter un produit")
         self.assertContains(response, "data-dynamic-formset")
         self.assertContains(response, "data-remove-form-row")
+        self.assertContains(response, "business-form--line-items")
+        self.assertContains(response, "line-form receipt-line")
 
     def test_viewer_cannot_create_stock_or_sale_operations(self):
         self.membership.role = Membership.Role.VIEWER

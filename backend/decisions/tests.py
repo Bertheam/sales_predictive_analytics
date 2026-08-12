@@ -215,6 +215,8 @@ class ProcurementWorkflowTests(TestCase):
         self.assertContains(response, "Ajouter un produit")
         self.assertContains(response, "même sans recommandation")
         self.assertContains(response, "data-remove-form-row")
+        self.assertContains(response, "business-form--line-items")
+        self.assertContains(response, "line-form manual-order-line")
 
     @patch("decisions.views.operational_references")
     def test_owner_creates_one_supplier_order_from_prepared_plans(self, references):
