@@ -77,8 +77,7 @@ class ForecastJobPageTests(TestCase):
         session["active_company_id"] = str(self.company.id)
         session.save()
         freshness_patcher = patch(
-            "forecasting.views.get_company_freshness",
-            return_value={"last_sale_date": date.today(), "age_days": 0},
+            "forecasting.views.get_products_freshness", return_value={}
         )
         freshness_patcher.start()
         self.addCleanup(freshness_patcher.stop)
@@ -90,6 +89,35 @@ class ForecastJobPageTests(TestCase):
         self.assertContains(response, "Prévisions")
         self.assertContains(response, "Quel produit voulez-vous anticiper")
         self.assertContains(response, "Aucun réglage technique")
+
+    @patch("forecasting.views.get_products_freshness")
+    @patch("forecasting.forms.product_choices")
+    def test_readiness_follows_the_selected_product(self, choices, freshness):
+        recent_product = uuid4()
+        stale_product = uuid4()
+        choices.return_value = [
+            (str(stale_product), "Produit ancien · PRD-002"),
+            (str(recent_product), "Produit récent · PRD-001"),
+        ]
+        freshness.return_value = {
+            str(recent_product): {
+                "exists": True,
+                "last_sale_date": date.today(),
+                "age_days": 0,
+            },
+            str(stale_product): {
+                "exists": True,
+                "last_sale_date": date.today() - timedelta(days=6),
+                "age_days": 6,
+            },
+        }
+
+        response = self.client.get(reverse("forecasting:jobs"))
+
+        self.assertContains(
+            response, "Les ventes de ce produit doivent être mises à jour"
+        )
+        self.assertContains(response, 'id="product-freshness-data"')
 
     @patch("forecasting.forms.product_choices", return_value=[])
     def test_technical_metrics_are_hidden_in_details(self, _choices):

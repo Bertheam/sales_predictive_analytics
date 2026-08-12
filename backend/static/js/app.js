@@ -56,6 +56,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initializeSelects(document);
 
+  const productFreshness = document.querySelector("[data-product-freshness]");
+  const productFreshnessData = document.querySelector("#product-freshness-data");
+  const forecastProduct = document.querySelector('[name="product_id"]');
+  if (productFreshness && productFreshnessData && forecastProduct) {
+    let freshnessByProduct = {};
+    try {
+      freshnessByProduct = JSON.parse(productFreshnessData.textContent || "{}");
+    } catch (_error) {
+      freshnessByProduct = {};
+    }
+    const refreshProductFreshness = () => {
+      const freshness = freshnessByProduct[forecastProduct.value] || {
+        state: "missing",
+        title: "Choisissez un produit",
+        description: "Sa dernière vente sera vérifiée avant le calcul.",
+        action_label: "Voir les ventes",
+      };
+      productFreshness.dataset.state = freshness.state;
+      productFreshness.classList.toggle("is-stale", freshness.state !== "current");
+      productFreshness.querySelector("[data-freshness-title]").textContent = freshness.title;
+      productFreshness.querySelector("[data-freshness-description]").textContent = freshness.description;
+      const action = productFreshness.querySelector("[data-freshness-action]");
+      action.textContent = freshness.action_label || "Voir les ventes";
+      action.hidden = freshness.state === "current";
+      const submit = document.querySelector("[data-forecast-submit]");
+      if (submit) {
+        submit.disabled = freshness.state !== "current";
+      }
+    };
+    forecastProduct.addEventListener("change", refreshProductFreshness);
+    if (window.jQuery?.fn?.select2) {
+      window.jQuery(forecastProduct).on("select2:select", refreshProductFreshness);
+    }
+    refreshProductFreshness();
+  }
+
   document.querySelectorAll("[data-invitation-form]").forEach((form) => {
     const channel = form.querySelector('[name="channel"]');
     const panels = form.querySelectorAll("[data-contact-panel]");

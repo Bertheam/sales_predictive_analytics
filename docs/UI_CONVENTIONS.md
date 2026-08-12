@@ -69,6 +69,11 @@ Les vues sont conçues en mobile-first avec les variantes Tailwind `md:` et `lg:
 La navigation latérale devient une barre inférieure mobile. Toute nouvelle page
 doit être utilisable à 360 px sans action principale inaccessible.
 
+Les contrôles interactifs tactiles ont une cible minimale de 44 × 44 px. Une
+information révélée au survol doit également être accessible au focus clavier ;
+les infobulles ne doivent jamais constituer l’unique moyen de comprendre une
+valeur métier.
+
 ## JavaScript
 
 Le fichier `backend/static/js/app.js` contient seulement les comportements

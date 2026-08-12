@@ -46,9 +46,15 @@ les opérations de maintenance exécutées dans pgAdmin Query Tool restent
 possibles. Cette exception ne s’applique pas aux rôles applicatifs ordinaires.
 Un utilisateur ou un dépôt référencé par l’audit doit être archivé plutôt que
 supprimé, afin de conserver l’identité de l’auteur et le contexte de l’action.
-Le journal web `/administration/audit/` est réservé aux
-super administrateurs de la plateforme. Les administrateurs d’un dépôt n’y ont
-pas accès.
+Le journal web `/administration/audit/` respecte deux niveaux d’accès :
+
+- un super-administrateur de la plateforme peut consulter tous les dépôts et
+  les informations techniques d’origine nécessaires au diagnostic ;
+- un propriétaire ou un administrateur consulte uniquement l’activité du dépôt
+  actif. Le filtre de dépôt et les informations techniques d’origine ne lui
+  sont pas exposés.
+
+Les analystes et les comptes de consultation n’ont pas accès au journal.
 
 La RLS des tables métier n'empêche pas un superutilisateur PostgreSQL d'exécuter
 des scripts dans pgAdmin. Avec un rôle SQL non-superutilisateur, définissez le

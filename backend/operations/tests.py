@@ -74,6 +74,30 @@ class OperationAccessTests(TestCase):
         response = self.client.get(reverse("operations:sale-detail", args=[uuid4()]))
         self.assertEqual(response.status_code, 404)
 
+    @patch("operations.views.sale_detail")
+    def test_sale_detail_translates_payment_method(self, sale_detail_mock):
+        sale_id = uuid4()
+        sale_detail_mock.return_value = ({
+            "id": sale_id,
+            "sale_number": "VTE-TEST",
+            "customer_name": "Client test",
+            "sale_date": date.today(),
+            "sale_time": time(10, 0),
+            "salesperson_name": "Gestionnaire Test",
+            "payment_method": "CASH",
+            "payment_status": "PAID",
+            "subtotal": Decimal("10000"),
+            "discount_amount": Decimal("0"),
+            "total_amount": Decimal("10000"),
+        }, [])
+
+        response = self.client.get(
+            reverse("operations:sale-detail", args=[sale_id])
+        )
+
+        self.assertContains(response, "Espèces")
+        self.assertNotContains(response, ">CASH<")
+
     @patch("operations.views.receipt_detail", return_value=None)
     def test_foreign_or_unknown_receipt_is_not_exposed(self, _receipt_detail):
         response = self.client.get(

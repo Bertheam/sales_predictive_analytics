@@ -44,6 +44,13 @@ STATUS_VARIANTS = {
     "CANCELLED": "danger", "FAILED": "danger", "CRITICAL": "danger",
 }
 
+PAYMENT_METHOD_LABELS = {
+    "CASH": "Espèces",
+    "MOBILE_MONEY": "Mobile Money",
+    "BANK_TRANSFER": "Virement bancaire",
+    "CREDIT": "Crédit",
+}
+
 
 def _query_url(request, updates):
     query = request.GET.copy()
@@ -107,6 +114,11 @@ def status_label(value):
 @register.filter
 def status_variant(value):
     return STATUS_VARIANTS.get(str(value or "").upper(), "neutral")
+
+
+@register.filter
+def payment_method_label(value):
+    return PAYMENT_METHOD_LABELS.get(str(value or "").upper(), value or "—")
 
 
 @register.filter

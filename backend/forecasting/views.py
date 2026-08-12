@@ -15,7 +15,7 @@ from app.database.session import session_for_company
 from app.services.future_forecast_service import FutureForecastService
 
 from .forms import ForecastJobForm
-from .data import get_company_freshness, get_product_freshness
+from .data import get_product_freshness, get_products_freshness
 from .models import ForecastJob, ProductModelChampion
 from .tasks import generate_product_forecast
 
@@ -36,6 +36,38 @@ def _freshness_error(freshness):
             "Importez ou saisissez les ventes manquantes avant de prévoir."
         )
     return ""
+
+
+def _freshness_presentation(freshness):
+    if not freshness or not freshness.get("exists"):
+        return {
+            "state": "missing",
+            "title": "Choisissez un produit",
+            "description": "Sa dernière vente sera vérifiée avant le calcul.",
+            "action_label": "Voir les ventes",
+        }
+    last_sale_date = freshness.get("last_sale_date")
+    if last_sale_date is None:
+        return {
+            "state": "missing",
+            "title": "Aucune vente pour ce produit",
+            "description": "Enregistrez quelques ventes avant de préparer une prévision.",
+            "action_label": "Ajouter des ventes",
+        }
+    date_label = last_sale_date.strftime("%d/%m/%Y")
+    if freshness["age_days"] > settings.FORECAST_MAX_DATA_AGE_DAYS:
+        return {
+            "state": "stale",
+            "title": "Les ventes de ce produit doivent être mises à jour",
+            "description": f"Dernière vente enregistrée le {date_label}.",
+            "action_label": "Mettre à jour",
+        }
+    return {
+        "state": "current",
+        "title": "Ce produit est prêt pour la prévision",
+        "description": f"Dernière vente enregistrée le {date_label}.",
+        "action_label": "",
+    }
 
 
 def _enqueue(job):
@@ -104,7 +136,17 @@ def forecast_jobs(request):
         job.status in {ForecastJob.Status.QUEUED, ForecastJob.Status.RUNNING}
         for job in jobs
     )
-    company_freshness = get_company_freshness(request.company.id)
+    freshness_by_product = get_products_freshness(request.company.id)
+    selected_product_id = str(form["product_id"].value() or "")
+    if not selected_product_id and form.fields["product_id"].choices:
+        selected_product_id = str(form.fields["product_id"].choices[0][0])
+    freshness_options = {
+        product_id: _freshness_presentation(freshness)
+        for product_id, freshness in freshness_by_product.items()
+    }
+    selected_freshness = freshness_options.get(
+        selected_product_id, _freshness_presentation(None)
+    )
     champions = list(
         ProductModelChampion.objects.filter(company=request.company).order_by(
             "-last_evaluated_at"
@@ -119,11 +161,8 @@ def forecast_jobs(request):
         "jobs": jobs,
         "can_generate": can_generate,
         "has_active_jobs": has_active_jobs,
-        "freshness": company_freshness,
-        "freshness_is_stale": (
-            company_freshness["age_days"] is not None
-            and company_freshness["age_days"] > settings.FORECAST_MAX_DATA_AGE_DAYS
-        ),
+        "selected_freshness": selected_freshness,
+        "product_freshness_options": freshness_options,
         "max_data_age_days": settings.FORECAST_MAX_DATA_AGE_DAYS,
         "champions": champions,
         "stable_models": stable_models,

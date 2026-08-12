@@ -6,9 +6,12 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.shortcuts import render
 
-from companies.models import Company
+from companies.models import Company, Membership
 from operations.listing import sort_and_paginate
 from .models import AuditLog
+
+
+DEPOT_AUDIT_ROLES = {Membership.Role.OWNER, Membership.Role.ADMIN}
 
 
 def _parse_date(value):
@@ -20,8 +23,17 @@ def _parse_date(value):
 
 @login_required
 def audit_log_list(request):
-    if not request.user.is_active or not request.user.is_superuser:
-        raise PermissionDenied("Le journal d’audit est réservé au super administrateur.")
+    is_platform_audit = request.user.is_active and request.user.is_superuser
+    can_view_depot_audit = (
+        request.user.is_active
+        and getattr(request, "company", None) is not None
+        and getattr(request, "membership", None) is not None
+        and request.membership.role in DEPOT_AUDIT_ROLES
+    )
+    if not is_platform_audit and not can_view_depot_audit:
+        raise PermissionDenied(
+            "Le journal du dépôt est réservé au propriétaire et aux administrateurs."
+        )
     query = request.GET.get("q", "").strip()[:100]
     action = request.GET.get("action", "").strip()
     company_id = request.GET.get("company", "").strip()
@@ -32,6 +44,9 @@ def audit_log_list(request):
     start = _parse_date(request.GET.get("start"))
     end = _parse_date(request.GET.get("end"))
     logs = AuditLog.objects.select_related("actor", "company")
+    if not is_platform_audit:
+        company_id = str(request.company.id)
+        logs = logs.filter(company=request.company)
     if query:
         logs = logs.filter(
             Q(actor_email__icontains=query)
@@ -41,7 +56,7 @@ def audit_log_list(request):
         )
     if action in AuditLog.Action.values:
         logs = logs.filter(action=action)
-    if company_id:
+    if is_platform_audit and company_id:
         logs = logs.filter(company_id=company_id)
     if start:
         logs = logs.filter(created_at__date__gte=start)
@@ -64,6 +79,7 @@ def audit_log_list(request):
         "page_obj": page_obj, "sort_state": sort_state,
         "pagination_state": pagination_state,
         "actions": AuditLog.Action.choices,
-        "companies": Company.objects.order_by("name"),
+        "companies": Company.objects.order_by("name") if is_platform_audit else (),
+        "is_platform_audit": is_platform_audit,
         "filters": {"q": query, "action": action, "company": company_id, "start": start, "end": end},
     })

@@ -28,9 +28,9 @@
         {% for row in results %}
           <div class="forecast-bar-row">
             <strong>{{ row.forecast_date|date:"D d/m" }}</strong>
-            <div class="forecast-bar-track" role="img" aria-label="{{ row.predicted_quantity|floatformat:0 }} colis probables, hausse possible de {{ row.safety_margin|floatformat:0 }} colis">
-              <div class="forecast-bar-segment probable" style="width:{{ row.predicted_width|stringformat:'.2f' }}%" tabindex="0" data-forecast-segment="probable" aria-label="Ventes les plus probables : {{ row.predicted_quantity|floatformat:1 }} colis"><span>Probable : {{ row.predicted_quantity|floatformat:1 }} colis</span></div>
-              {% if row.safety_margin > 0 %}<div class="forecast-bar-segment possible" style="left:{{ row.predicted_width|stringformat:'.2f' }}%;width:{{ row.safety_margin_width|stringformat:'.2f' }}%" tabindex="0" data-forecast-segment="safety-margin" aria-label="Hausse possible : {{ row.safety_margin|floatformat:1 }} colis"><span>Hausse possible : +{{ row.safety_margin|floatformat:1 }} colis</span></div>{% endif %}
+            <div class="forecast-bar-track" role="group" aria-label="Prévision du {{ row.forecast_date|date:'d/m/Y' }}">
+              <button type="button" class="forecast-bar-segment probable" style="width:{{ row.predicted_width|stringformat:'.2f' }}%" data-forecast-segment="probable" aria-describedby="probable-tooltip-{{ forloop.counter }}"><span id="probable-tooltip-{{ forloop.counter }}" role="tooltip">Ventes probables : {{ row.predicted_quantity|floatformat:1 }} colis</span></button>
+              {% if row.safety_margin > 0 %}<button type="button" class="forecast-bar-segment possible" style="left:{{ row.predicted_width|stringformat:'.2f' }}%;width:{{ row.safety_margin_width|stringformat:'.2f' }}%" data-forecast-segment="safety-margin" aria-describedby="possible-tooltip-{{ forloop.counter }}"><span id="possible-tooltip-{{ forloop.counter }}" role="tooltip">Hausse possible : +{{ row.safety_margin|floatformat:1 }} colis</span></button>{% endif %}
             </div>
             <div class="forecast-bar-value"><strong>{{ row.predicted_quantity|floatformat:0 }}</strong><small>colis probables</small></div>
           </div>

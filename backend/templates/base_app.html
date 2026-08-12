@@ -5,15 +5,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}NexaStock{% endblock %}</title>
+  <link rel="icon" href="{% static 'images/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
-  <link rel="stylesheet" href="{% static 'css/operations.css' %}?v=20260809-8">
+  <link rel="stylesheet" href="{% static 'css/operations.css' %}?v=20260812-1">
   <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
   <script defer src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js"></script>
   <script defer src="{% static 'vendor/lucide/lucide.min.js' %}"></script>
-  <script defer src="{% static 'js/app.js' %}?v=20260809-5"></script>
+  <script defer src="{% static 'js/app.js' %}?v=20260812-1"></script>
 </head>
 <body class="app-body">
   <div class="app-shell min-h-dvh">
@@ -36,7 +37,7 @@
             {% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a class="nav-link{% if request.resolver_match.url_name == 'data-import' %} active{% endif %}" href="{% url 'operations:data-import' %}"><span><i data-lucide="file-spreadsheet" class="ui-icon" aria-hidden="true"></i></span> Import Excel</a>{% endif %}
             {% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a class="nav-link{% if request.resolver_match.namespace == 'companies' and request.resolver_match.url_name != 'select' %} active{% endif %}" href="{% url 'companies:team' %}"><span><i data-lucide="user-round-cog" class="ui-icon" aria-hidden="true"></i></span> Équipe</a>{% endif %}
             <a class="nav-link{% if request.resolver_match.url_name == 'activity' %} active{% endif %}" href="{% url 'dashboard:activity' %}"><span><i data-lucide="chart-line" class="ui-icon" aria-hidden="true"></i></span> Analyse des ventes</a>
-            {% if request.user.is_superuser %}<a class="nav-link{% if request.resolver_match.namespace == 'audit' %} active{% endif %}" href="{% url 'audit:logs' %}"><span><i data-lucide="history" class="ui-icon" aria-hidden="true"></i></span> Journal d’audit</a>{% endif %}
+            {% if can_view_audit %}<a class="nav-link{% if request.resolver_match.namespace == 'audit' %} active{% endif %}" href="{% url 'audit:logs' %}"><span><i data-lucide="history" class="ui-icon" aria-hidden="true"></i></span> Journal d’activité</a>{% endif %}
           </div>
         </details>
       </nav>
@@ -57,7 +58,7 @@
           <div class="user-dropdown__menu">
             <div class="user-dropdown__identity"><strong>{{ request.user.full_name|default:request.user.login_identifier }}</strong><small>{{ request.user.login_identifier }}</small></div>
             <a href="{% url 'accounts:profile' %}"><span><i data-lucide="user-round" class="ui-icon" aria-hidden="true"></i></span> Mon profil</a>
-            {% if request.user.is_superuser %}<a href="{% url 'audit:logs' %}"><span><i data-lucide="history" class="ui-icon" aria-hidden="true"></i></span> Journal d’audit</a>{% endif %}
+            {% if can_view_audit %}<a href="{% url 'audit:logs' %}"><span><i data-lucide="history" class="ui-icon" aria-hidden="true"></i></span> Journal d’activité</a>{% endif %}
             <form method="post" action="{% url 'accounts:logout' %}" data-confirm-form data-confirm-title="Se déconnecter ?" data-confirm-text="Vous devrez vous reconnecter pour accéder au dépôt.">
               {% csrf_token %}<button type="submit"><span><i data-lucide="log-out" class="ui-icon" aria-hidden="true"></i></span> Se déconnecter</button>
             </form>
@@ -75,7 +76,7 @@
     <a href="{% url 'operations:sales' %}"{% if request.resolver_match.url_name == 'sales' or request.resolver_match.url_name == 'sale-detail' %} class="active"{% endif %}><span><i data-lucide="shopping-cart" class="ui-icon" aria-hidden="true"></i></span>Ventes</a>
     <a href="{% url 'operations:stocks' %}"{% if request.resolver_match.url_name == 'stocks' %} class="active"{% endif %}><span><i data-lucide="boxes" class="ui-icon" aria-hidden="true"></i></span>Stocks</a>
     <a href="{% url 'forecasting:jobs' %}"{% if request.resolver_match.namespace == 'forecasting' %} class="active"{% endif %}><span><i data-lucide="chart-no-axes-combined" class="ui-icon" aria-hidden="true"></i></span>Prévisions</a>
-    <details class="mobile-more{% if request.resolver_match.url_name == 'activity' or request.resolver_match.namespace == 'operations' and request.resolver_match.url_name != 'sales' and request.resolver_match.url_name != 'stocks' or request.resolver_match.url_name == 'team' or request.resolver_match.namespace == 'decisions' %} active{% endif %}"><summary><span><i data-lucide="settings-2" class="ui-icon" aria-hidden="true"></i></span>Gestion</summary><div><a href="{% url 'dashboard:activity' %}"><span><i data-lucide="chart-line" class="ui-icon" aria-hidden="true"></i></span>Analyse</a><a href="{% url 'decisions:center' %}"><span><i data-lucide="package-search" class="ui-icon" aria-hidden="true"></i></span>Approvisionnement</a>{% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a href="{% url 'decisions:orders' %}"><span><i data-lucide="clipboard-list" class="ui-icon" aria-hidden="true"></i></span>Commandes</a>{% endif %}<a href="{% url 'operations:products' %}"><span><i data-lucide="package" class="ui-icon" aria-hidden="true"></i></span>Produits</a><a href="{% url 'operations:customers' %}"><span><i data-lucide="users" class="ui-icon" aria-hidden="true"></i></span>Clients</a><a href="{% url 'operations:suppliers' %}"><span><i data-lucide="truck" class="ui-icon" aria-hidden="true"></i></span>Fournisseurs</a>{% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a href="{% url 'operations:data-import' %}"><span><i data-lucide="file-spreadsheet" class="ui-icon" aria-hidden="true"></i></span>Import Excel</a><a href="{% url 'companies:team' %}"><span><i data-lucide="user-round-cog" class="ui-icon" aria-hidden="true"></i></span>Équipe</a>{% endif %}</div></details>
+    <details class="mobile-more{% if request.resolver_match.url_name == 'activity' or request.resolver_match.namespace == 'operations' and request.resolver_match.url_name != 'sales' and request.resolver_match.url_name != 'stocks' or request.resolver_match.url_name == 'team' or request.resolver_match.namespace == 'decisions' or request.resolver_match.namespace == 'audit' %} active{% endif %}"><summary><span><i data-lucide="settings-2" class="ui-icon" aria-hidden="true"></i></span>Gestion</summary><div><a href="{% url 'dashboard:activity' %}"><span><i data-lucide="chart-line" class="ui-icon" aria-hidden="true"></i></span>Analyse</a><a href="{% url 'decisions:center' %}"><span><i data-lucide="package-search" class="ui-icon" aria-hidden="true"></i></span>Approvisionnement</a>{% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a href="{% url 'decisions:orders' %}"><span><i data-lucide="clipboard-list" class="ui-icon" aria-hidden="true"></i></span>Commandes</a>{% endif %}<a href="{% url 'operations:products' %}"><span><i data-lucide="package" class="ui-icon" aria-hidden="true"></i></span>Produits</a><a href="{% url 'operations:customers' %}"><span><i data-lucide="users" class="ui-icon" aria-hidden="true"></i></span>Clients</a><a href="{% url 'operations:suppliers' %}"><span><i data-lucide="truck" class="ui-icon" aria-hidden="true"></i></span>Fournisseurs</a>{% if active_membership.role == 'OWNER' or active_membership.role == 'ADMIN' %}<a href="{% url 'operations:data-import' %}"><span><i data-lucide="file-spreadsheet" class="ui-icon" aria-hidden="true"></i></span>Import Excel</a><a href="{% url 'companies:team' %}"><span><i data-lucide="user-round-cog" class="ui-icon" aria-hidden="true"></i></span>Équipe</a>{% endif %}{% if can_view_audit %}<a href="{% url 'audit:logs' %}"><span><i data-lucide="history" class="ui-icon" aria-hidden="true"></i></span>Journal d’activité</a>{% endif %}</div></details>
   </nav>
 </body>
 </html>

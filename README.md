@@ -34,7 +34,8 @@ Suivi de la qualité prédictive
 - Validation des références, doublons, champs obligatoires et règles métier.
 - Génération automatique des codes internes et numéros de mouvements.
 - Tableau de bord de qualité ML et détection de dérive.
-- Journal d’audit des connexions et actions sensibles, réservé au super administrateur.
+- Journal d’activité du dépôt pour les propriétaires et administrateurs, avec
+  une vue globale réservée au super administrateur de la plateforme.
 - E-mails transactionnels Brevo avec templates HTML responsive et fallback texte.
 
 ## Technologies

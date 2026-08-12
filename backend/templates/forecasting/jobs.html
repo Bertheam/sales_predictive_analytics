@@ -8,15 +8,12 @@
     <div><h1>Prévisions</h1><p>Découvrez les ventes probables des 7 prochains jours.</p></div>
   </section>
 
-  {% if freshness.last_sale_date %}
-    <div class="data-readiness{% if freshness_is_stale %} is-stale{% endif %}">
-      <span><i data-lucide="{% if freshness_is_stale %}triangle-alert{% else %}circle-check{% endif %}" class="ui-icon" aria-hidden="true"></i></span>
-      <p><strong>{% if freshness_is_stale %}Vos ventes doivent être mises à jour{% else %}Les données sont prêtes{% endif %}</strong><small>Dernière vente enregistrée le {{ freshness.last_sale_date|date:"d/m/Y" }}.</small></p>
-      {% if freshness_is_stale %}<a href="{% url 'operations:sales' %}">Mettre à jour</a>{% endif %}
-    </div>
-  {% else %}
-    <div class="data-readiness is-stale"><span><i data-lucide="triangle-alert" class="ui-icon" aria-hidden="true"></i></span><p><strong>Ajoutez d’abord vos ventes</strong><small>Un historique est nécessaire pour préparer une prévision.</small></p><a href="{% url 'operations:sales' %}">Voir les ventes</a></div>
-  {% endif %}
+  {{ product_freshness_options|json_script:"product-freshness-data" }}
+  <div id="product-freshness-status" class="data-readiness{% if selected_freshness.state != 'current' %} is-stale{% endif %}" data-product-freshness data-state="{{ selected_freshness.state }}" aria-live="polite">
+    <span><i data-lucide="activity" class="ui-icon" aria-hidden="true"></i></span>
+    <p><strong data-freshness-title>{{ selected_freshness.title }}</strong><small data-freshness-description>{{ selected_freshness.description }}</small></p>
+    <a href="{% url 'operations:sales' %}" data-freshness-action{% if selected_freshness.state == 'current' %} hidden{% endif %}>{{ selected_freshness.action_label }}</a>
+  </div>
 
   <section class="forecast-simple-grid">
     <article id="nouvelle-prevision" class="simple-task-card">
@@ -27,7 +24,7 @@
           <form method="post" class="simple-task-form" data-submit-lock>{% csrf_token %}
             <div class="form-field"><label for="{{ form.product_id.id_for_label }}">Produit</label>{{ form.product_id }}{% for error in form.product_id.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
             <div class="hidden">{{ form.horizon }}</div>
-            <button class="ui-button ui-button--primary" type="submit">Préparer la prévision</button>
+            <button class="ui-button ui-button--primary" type="submit" data-forecast-submit aria-describedby="product-freshness-status">Préparer la prévision</button>
           </form>
         {% else %}{% include "components/empty_state.html" with icon="package" title="Aucun produit disponible" description="Ajoutez un produit actif pour commencer." only %}{% endif %}
       {% else %}<div class="simple-note">Vous pouvez consulter les résultats déjà préparés.</div>{% endif %}

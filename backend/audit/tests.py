@@ -3,7 +3,7 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from accounts.models import User
-from companies.models import Company
+from companies.models import Company, Membership
 from .models import AuditLog
 from .services import record_audit
 
@@ -66,3 +66,56 @@ class AuditLogTests(TestCase):
         response = self.client.get(reverse("audit:logs"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Journal d’audit")
+
+    def test_owner_sees_only_the_active_company_activity(self):
+        other_company = Company.objects.create(
+            code="other-audit-company", name="Autre dépôt"
+        )
+        Membership.objects.create(
+            user=self.user,
+            company=self.company,
+            role=Membership.Role.OWNER,
+            status=Membership.Status.ACTIVE,
+        )
+        AuditLog.objects.create(
+            actor=self.user,
+            actor_email=self.user.email,
+            company=self.company,
+            action=AuditLog.Action.CREATE,
+            resource_type="product",
+            description="Création visible dans le dépôt actif.",
+        )
+        AuditLog.objects.create(
+            actor=self.user,
+            actor_email=self.user.email,
+            company=other_company,
+            action=AuditLog.Action.CREATE,
+            resource_type="product",
+            description="Création privée dans un autre dépôt.",
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session["active_company_id"] = str(self.company.id)
+        session.save()
+
+        response = self.client.get(reverse("audit:logs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Journal d’activité")
+        self.assertContains(response, "Création visible dans le dépôt actif.")
+        self.assertNotContains(response, "Création privée dans un autre dépôt.")
+        self.assertNotContains(response, 'id="audit-company"')
+
+    def test_viewer_cannot_see_company_activity(self):
+        Membership.objects.create(
+            user=self.user,
+            company=self.company,
+            role=Membership.Role.VIEWER,
+            status=Membership.Status.ACTIVE,
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session["active_company_id"] = str(self.company.id)
+        session.save()
+
+        self.assertEqual(self.client.get(reverse("audit:logs")).status_code, 403)
