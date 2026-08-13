@@ -1,9 +1,6 @@
 Bonjour,
 
-{{ invited_by_name }} vous invite à rejoindre {{ company.name }} sur NexaStock.
-
-Dépôt : {{ company.name }}
-Rôle : {{ role_label }}
+{{ invited_by_name }} vous invite à rejoindre le dépôt {{ company.name }} sur NexaStock avec le rôle {{ role_label }}.
 
 Acceptez l’invitation avant le {{ expires_at|date:"d/m/Y à H:i" }} :
 {{ accept_url }}

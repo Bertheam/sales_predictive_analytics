@@ -1,66 +1,31 @@
 {% extends "emails/base.html" %}
 {% block title %}Votre accès à {{ company.name }}{% endblock %}
-{% block preheader %}Votre accès NexaStock au dépôt {{ company.name }} est prêt.{% endblock %}
+{% block preheader %}{{ invited_by_name }} vous invite à rejoindre {{ company.name }} sur NexaStock.{% endblock %}
 {% block content %}
-  <div style="padding:38px 38px 12px;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-      <tr>
-        <td valign="top">
-          <p style="margin:0 0 10px;color:#13805f;font-size:11px;font-weight:900;letter-spacing:1.8px;text-transform:uppercase;">Nouvel accès dépôt</p>
-          <h1 style="margin:0;color:#10221c;font-size:30px;line-height:37px;letter-spacing:-.9px;">Votre espace de travail<br>est prêt.</h1>
-        </td>
-        <td width="86" align="right" valign="top">
-          <table role="presentation" cellspacing="4" cellpadding="0" border="0">
-            <tr>
-              <td valign="bottom" style="width:12px;height:26px;border-radius:4px;background:#bdebd9;"></td>
-              <td valign="bottom" style="width:12px;height:40px;border-radius:4px;background:#5fd0a7;"></td>
-              <td valign="bottom" style="width:12px;height:55px;border-radius:4px;background:#11845f;"></td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-    <p style="margin:22px 0 0;color:#61716a;font-size:15px;line-height:24px;">
-      <strong style="color:#10221c;">{{ invited_by_name }}</strong> vous donne accès aux opérations et indicateurs du dépôt ci-dessous.
+  <div style="padding:34px 34px 32px;">
+    <p style="margin:0 0 12px;color:#66766f;font-size:14px;line-height:22px;">Bonjour,</p>
+    <h1 style="margin:0;color:#14251f;font-size:25px;line-height:32px;letter-spacing:-.6px;">Vous êtes invité à rejoindre {{ company.name }}.</h1>
+    <p style="margin:16px 0 0;color:#66766f;font-size:14px;line-height:23px;">
+      <strong style="color:#32443c;">{{ invited_by_name }}</strong> vous a ajouté à ce dépôt sur NexaStock avec le rôle <strong style="color:#32443c;">{{ role_label }}</strong>.
     </p>
-  </div>
 
-  <div style="margin:20px 38px 26px;border:1px solid #cfe0d8;border-radius:18px;background:#f4f9f6;overflow:hidden;">
-    <div style="border-left:6px solid #11845f;padding:22px 22px 20px;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-        <tr>
-          <td>
-            <p style="margin:0 0 7px;color:#7c8b85;font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;">Dépôt attribué</p>
-            <p style="margin:0;color:#10221c;font-size:20px;font-weight:900;line-height:27px;">{{ company.name }}</p>
-          </td>
-          <td width="105" align="right">
-            <span style="display:inline-block;border-radius:9px;background:#d9f2e8;padding:9px 11px;color:#087052;font-size:11px;font-weight:900;text-transform:uppercase;">{{ role_label }}</span>
-          </td>
-        </tr>
-      </table>
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:20px;border-top:1px dashed #c8d9d1;">
-        <tr>
-          <td style="padding-top:14px;color:#7b8984;font-size:11px;">ACCÈS PERSONNEL</td>
-          <td align="right" style="padding-top:14px;color:#405149;font-size:11px;font-weight:800;">VALABLE JUSQU’AU {{ expires_at|date:"d/m/Y" }}</td>
-        </tr>
-      </table>
+    <div style="margin:24px 0;padding:15px 17px;border-left:3px solid #0d8060;border-radius:8px;background:#f3f8f5;color:#52635b;font-size:13px;line-height:21px;">
+      Invitation valable jusqu’au <strong style="color:#263a31;">{{ expires_at|date:"d/m/Y à H:i" }}</strong>.
     </div>
-  </div>
 
-  <div style="padding:0 38px 38px;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
       <tr>
-        <td align="center" style="border-radius:13px;background:#0d7657;">
-          <a href="{{ accept_url }}" style="display:block;padding:16px 22px;color:#ffffff;font-size:14px;font-weight:900;text-decoration:none;">Entrer dans mon dépôt&nbsp;&nbsp;→</a>
+        <td align="center" style="border-radius:10px;background:#0d8060;">
+          <a href="{{ accept_url }}" style="display:block;padding:14px 20px;color:#ffffff;font-size:14px;font-weight:800;text-decoration:none;">Accepter l’invitation</a>
         </td>
       </tr>
     </table>
-    <p style="margin:18px 0 0;color:#7c8a84;font-size:12px;line-height:19px;">
-      Après acceptation, NexaStock vous placera directement dans <strong style="color:#43534c;">{{ company.name }}</strong>. Cette invitation est personnelle et ne doit pas être transférée.
+    <p style="margin:17px 0 0;color:#7a8982;font-size:12px;line-height:19px;">
+      Cette invitation est personnelle. Si vous ne reconnaissez pas cette demande, ignorez simplement cet e-mail.
     </p>
-    <p style="margin:20px 0 0;padding-top:17px;border-top:1px solid #e5ece8;color:#98a39e;font-size:10px;line-height:16px;word-break:break-all;">
-      Bouton indisponible ? Ouvrez ce lien :<br>
-      <a href="{{ accept_url }}" style="color:#11845f;">{{ accept_url }}</a>
+    <p style="margin:20px 0 0;padding-top:16px;border-top:1px solid #e8eeeb;color:#929e98;font-size:10px;line-height:16px;word-break:break-all;">
+      Si le bouton ne fonctionne pas, copiez ce lien :<br>
+      <a href="{{ accept_url }}" style="color:#0d8060;">{{ accept_url }}</a>
     </p>
   </div>
 {% endblock %}

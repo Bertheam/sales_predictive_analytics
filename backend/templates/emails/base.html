@@ -5,44 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}NexaStock{% endblock %}</title>
 </head>
-<body style="margin:0;padding:0;background:#edf3f0;color:#10221c;font-family:Arial,Helvetica,sans-serif;">
+<body style="margin:0;padding:0;background:#f4f7f5;color:#14251f;font-family:Arial,Helvetica,sans-serif;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">{% block preheader %}{% endblock %}</div>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#edf3f0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f4f7f5;">
     <tr>
-      <td align="center" style="padding:28px 12px;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;">
+      <td align="center" style="padding:32px 14px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;">
           <tr>
-            <td style="border-radius:24px 24px 0 0;background:#0a251c;padding:25px 30px;">
+            <td style="padding:0 4px 18px;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td valign="middle">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
-                      <tr>
-                        <td style="width:42px;height:42px;border-radius:12px;background:#16a275;color:#ffffff;text-align:center;font-size:21px;font-weight:900;">N</td>
-                        <td style="padding-left:12px;color:#ffffff;font-size:21px;font-weight:900;letter-spacing:-.4px;">NexaStock</td>
-                      </tr>
-                    </table>
-                  </td>
-                  <td align="right" valign="middle">
-                    <span style="display:inline-block;border:1px solid #245241;border-radius:999px;padding:8px 12px;color:#79dbb6;font-size:10px;font-weight:800;letter-spacing:1.2px;">STOCK · VENTES · J+7</span>
-                  </td>
+                  <td width="34" height="34" style="width:34px;height:34px;border-radius:9px;background:#0d8060;color:#ffffff;text-align:center;font-size:17px;font-weight:900;">N</td>
+                  <td style="padding-left:10px;color:#14251f;font-size:18px;font-weight:900;letter-spacing:-.3px;">NexaStock</td>
                 </tr>
               </table>
             </td>
           </tr>
           <tr>
-            <td style="border-right:1px solid #d8e4de;border-bottom:1px solid #d8e4de;border-left:1px solid #d8e4de;border-radius:0 0 24px 24px;background:#ffffff;">
+            <td style="border:1px solid #dce6e1;border-radius:16px;background:#ffffff;box-shadow:0 8px 24px rgba(20,37,31,.05);">
               {% block content %}{% endblock %}
             </td>
           </tr>
           <tr>
-            <td style="padding:18px 22px 0;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                <tr>
-                  <td style="color:#71817a;font-size:11px;line-height:17px;">NexaStock · Le centre de pilotage de votre dépôt</td>
-                  <td align="right" style="color:#95a19c;font-size:10px;line-height:17px;">Message transactionnel sécurisé</td>
-                </tr>
-              </table>
+            <td align="center" style="padding:18px 12px 0;color:#89968f;font-size:11px;line-height:17px;">
+              Cet e-mail a été envoyé automatiquement par NexaStock.
             </td>
           </tr>
         </table>

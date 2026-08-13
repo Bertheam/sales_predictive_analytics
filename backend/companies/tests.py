@@ -404,7 +404,10 @@ class TeamManagementTests(TestCase):
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
         html_body, content_type = mail.outbox[0].alternatives[0]
         self.assertEqual(content_type, "text/html")
-        self.assertIn("Entrer dans mon dépôt", html_body)
+        self.assertIn("Accepter l’invitation", html_body)
+        self.assertIn("Vous êtes invité à rejoindre", html_body)
+        self.assertNotIn("STOCK · VENTES · J+7", html_body)
+        self.assertNotIn("Votre espace de travail", html_body)
         self.assertIn(raw_token, html_body)
 
     def test_invitation_task_ignores_an_obsolete_link(self):
