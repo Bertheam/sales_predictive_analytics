@@ -456,6 +456,34 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  const saleForm = document.querySelector("[data-sale-form]");
+  if (saleForm) {
+    const number = (value) => Number.parseFloat(String(value || "0").replace(",", ".")) || 0;
+    const money = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
+    const refreshSaleTotals = () => {
+      let total = 0;
+      saleForm.querySelectorAll("[data-form-row]").forEach((row) => {
+        if (row.hidden || row.querySelector('[name$="-DELETE"]')?.checked) return;
+        const quantity = number(row.querySelector('[name$="-quantity_packages"]')?.value);
+        const price = number(row.querySelector('[name$="-unit_price"]')?.value);
+        const discount = number(row.querySelector('[name$="-discount_amount"]')?.value);
+        const subtotal = Math.max(quantity * price - discount, 0);
+        total += subtotal;
+        let output = row.querySelector("[data-line-subtotal]");
+        if (!output) {
+          output = document.createElement("strong"); output.dataset.lineSubtotal = ""; output.className = "line-subtotal"; row.appendChild(output);
+        }
+        output.textContent = `Sous-total : ${money.format(subtotal)} FCFA`;
+      });
+      const output = saleForm.querySelector("[data-sale-grand-total]");
+      if (output) output.textContent = `${money.format(total)} FCFA`;
+    };
+    saleForm.addEventListener("input", refreshSaleTotals);
+    saleForm.addEventListener("change", refreshSaleTotals);
+    saleForm.addEventListener("click", () => window.setTimeout(refreshSaleTotals));
+    refreshSaleTotals();
+  }
+
   const autoRefresh = document.querySelector("[data-auto-refresh-url]");
   if (autoRefresh) {
     const delay = Number(autoRefresh.dataset.autoRefreshDelay || 8000);

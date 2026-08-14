@@ -1,5 +1,6 @@
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.models import User
 from companies.models import Company, Membership
@@ -121,3 +122,31 @@ class ApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["code"], "invalid_company_context")
+
+    def test_mobile_login_returns_jwt_and_accessible_companies(self):
+        response = self.client.post(
+            reverse("api:login"),
+            {"identifier": self.user.email, "password": "A-secure-password-2026"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("access", response.json())
+        self.assertIn("refresh", response.json())
+        self.assertEqual(len(response.json()["companies"]), 1)
+
+    def test_bearer_authentication_accesses_profile(self):
+        access = str(RefreshToken.for_user(self.user).access_token)
+        response = self.client.get(reverse("api:me"), HTTP_AUTHORIZATION=f"Bearer {access}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["email"], self.user.email)
+
+    def test_viewer_cannot_create_stock_movement(self):
+        membership = Membership.objects.get(user=self.user, company=self.company)
+        membership.role = Membership.Role.VIEWER
+        membership.save(update_fields=["role"])
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("api:stock-movements"), {},
+            content_type="application/json", HTTP_X_COMPANY_ID=str(self.company.id),
+        )
+        self.assertEqual(response.status_code, 403)

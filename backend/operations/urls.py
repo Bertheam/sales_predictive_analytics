@@ -40,6 +40,7 @@ urlpatterns = [
     path("ventes/", views.sales, name="sales"),
     path("ventes/nouvelle/", views.sale_create, name="sale-create"),
     path("ventes/<uuid:sale_id>/", views.sale_show, name="sale-detail"),
+    path("ventes/<uuid:sale_id>/recu.pdf", views.sale_receipt, name="sale-receipt"),
     path("ventes/<uuid:sale_id>/modifier/", views.sale_edit, name="sale-edit"),
     path("ventes/<uuid:sale_id>/annuler/", views.sale_cancel, name="sale-cancel"),
 ]
