@@ -32,6 +32,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -56,6 +58,13 @@ services:
       DEFAULT_FROM_EMAIL: "${DEFAULT_FROM_EMAIL:-NexaStock <noreply@nexastock.local>}"
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      DJANGO_CACHE_URL: ${DJANGO_CACHE_URL:-redis://redis:6379/2}
+      API_LOGIN_RATE: ${API_LOGIN_RATE:-10/minute}
+      API_SENSITIVE_WRITE_RATE: ${API_SENSITIVE_WRITE_RATE:-60/minute}
+      API_NUM_PROXIES: ${API_NUM_PROXIES:-0}
+      WEB_LOGIN_MAX_ATTEMPTS: ${WEB_LOGIN_MAX_ATTEMPTS:-8}
+      WEB_LOGIN_WINDOW_SECONDS: ${WEB_LOGIN_WINDOW_SECONDS:-300}
+      RATE_LIMIT_TRUST_X_FORWARDED_FOR: ${RATE_LIMIT_TRUST_X_FORWARDED_FOR:-false}
       CELERY_AUTOMATION_ENABLED: ${CELERY_AUTOMATION_ENABLED:-false}
       FORECAST_MAX_DATA_AGE_DAYS: ${FORECAST_MAX_DATA_AGE_DAYS:-3}
       FORECAST_CHAMPION_MIN_IMPROVEMENT: ${FORECAST_CHAMPION_MIN_IMPROVEMENT:-5}

@@ -6,7 +6,7 @@
   <form method="post" class="stack-form">
     {% csrf_token %}
     {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    {% if rate_limit_error %}<div class="form-errors" role="alert">{{ rate_limit_error }}</div>{% elif form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
     {% for field in form %}
       <div class="field-group">
         <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}

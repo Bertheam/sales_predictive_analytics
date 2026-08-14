@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import Http404, HttpResponseForbidden
+from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -13,6 +13,7 @@ from audit.services import record_audit
 from companies.models import Membership
 from companies.permissions import company_required
 from operations.data import create_receipt, inventory_history, operational_references
+from operations.receipts import render_purchase_order_document
 
 from .forms import (
     ManualPurchaseOrderForm,
@@ -256,6 +257,10 @@ def manual_order_create(request):
         {
             "form": form,
             "items": items,
+            "product_costs": {
+                str(row["id"]): str(row["purchase_price"])
+                for row in references["products"]
+            },
             **_order_context(request.company),
         },
     )
@@ -427,6 +432,19 @@ def order_detail(request, order_id):
             **_order_context(request.company),
         },
     )
+
+
+@company_required
+def order_document(request, order_id):
+    order = _get_order(request.company, order_id)
+    response = HttpResponse(
+        render_purchase_order_document(order, request.company),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="bon-commande-{order.order_number}.pdf"'
+    )
+    return response
 
 
 @require_POST

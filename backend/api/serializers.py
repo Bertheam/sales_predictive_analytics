@@ -1,7 +1,10 @@
 from decimal import Decimal
 
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
+from accounts.models import User
 from companies.models import Company, Membership
 from decisions.models import PurchaseOrder, PurchaseOrderItem, PurchaseOrderReceipt
 from forecasting.models import ForecastJob
@@ -32,6 +35,23 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, trim_whitespace=False)
 
 
+class ActiveMembershipTokenRefreshSerializer(TokenRefreshSerializer):
+    def validate(self, attrs):
+        refresh = self.token_class(attrs["refresh"])
+        user_id = refresh.get("user_id")
+        has_access = User.objects.filter(id=user_id, is_active=True).exists() and Membership.objects.filter(
+            user_id=user_id,
+            status=Membership.Status.ACTIVE,
+            company__status=Company.Status.ACTIVE,
+        ).exists()
+        if not has_access:
+            raise AuthenticationFailed(
+                "Votre accès aux dépôts est suspendu ou indisponible.",
+                code="no_active_membership",
+            )
+        return super().validate(attrs)
+
+
 class SaleItemWriteSerializer(serializers.Serializer):
     product_id = serializers.UUIDField()
     quantity_packages = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
@@ -46,6 +66,65 @@ class SaleWriteSerializer(serializers.Serializer):
     payment_status = serializers.ChoiceField(choices=SaleForm.PAYMENT_STATUS)
     notes = serializers.CharField(required=False, allow_blank=True, max_length=500)
     items = SaleItemWriteSerializer(many=True, allow_empty=False)
+
+
+class SaleUpdateSerializer(serializers.Serializer):
+    customer_id = serializers.UUIDField(required=False, allow_null=True)
+    payment_method = serializers.ChoiceField(
+        choices=SaleForm.PAYMENT_METHODS, required=False
+    )
+    payment_status = serializers.ChoiceField(
+        choices=SaleForm.PAYMENT_STATUS, required=False
+    )
+    notes = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, max_length=500
+    )
+
+
+class ProductWriteSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=180)
+    brand = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    category_id = serializers.UUIDField()
+    volume_value = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False, allow_null=True, min_value=0
+    )
+    volume_unit = serializers.ChoiceField(
+        choices=("CL", "ML", "L"), required=False, allow_blank=True
+    )
+    package_type = serializers.ChoiceField(
+        choices=("CARTON", "PACK", "CASIER", "UNITE")
+    )
+    units_per_package = serializers.IntegerField(min_value=1)
+    purchase_price = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0)
+    selling_price = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
+    minimum_stock = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0)
+    reorder_quantity = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0)
+    is_active = serializers.BooleanField(default=True)
+
+    def validate(self, attrs):
+        if attrs.get("selling_price") is not None and attrs.get("purchase_price") is not None:
+            if attrs["selling_price"] < attrs["purchase_price"]:
+                raise serializers.ValidationError({"selling_price": "Le prix de vente ne peut pas être inférieur au prix d'achat."})
+        if attrs.get("volume_value") and not attrs.get("volume_unit"):
+            raise serializers.ValidationError({"volume_unit": "Indiquez l'unité du volume."})
+        return attrs
+
+
+class CustomerWriteSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=180)
+    customer_type_id = serializers.UUIDField()
+    phone = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
+    zone = serializers.CharField(max_length=120, required=False, allow_blank=True, allow_null=True)
+    district = serializers.CharField(max_length=120, required=False, allow_blank=True, allow_null=True)
+    city = serializers.CharField(max_length=120, required=False, allow_blank=True, default="Bamako")
+    is_active = serializers.BooleanField(default=True)
+
+
+class SupplierWriteSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=180)
+    phone = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
+    city = serializers.CharField(max_length=120, required=False, allow_blank=True, allow_null=True)
+    is_active = serializers.BooleanField(default=True)
 
 
 class MovementWriteSerializer(serializers.Serializer):
@@ -87,14 +166,14 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
 class PurchaseOrderItemWriteSerializer(serializers.Serializer):
     product_id = serializers.UUIDField()
     product_code = serializers.CharField(max_length=40, required=False, allow_blank=True)
-    product_name = serializers.CharField(max_length=180)
+    product_name = serializers.CharField(max_length=180, required=False, allow_blank=True)
     quantity_ordered = serializers.DecimalField(max_digits=16, decimal_places=2, min_value=Decimal("0.01"))
     unit_cost = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0, default=0)
 
 
 class PurchaseOrderWriteSerializer(serializers.Serializer):
     supplier_id = serializers.UUIDField()
-    supplier_name = serializers.CharField(max_length=180)
+    supplier_name = serializers.CharField(max_length=180, required=False, allow_blank=True)
     expected_date = serializers.DateField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, max_length=1000)
     items = PurchaseOrderItemWriteSerializer(many=True, allow_empty=False)
@@ -126,7 +205,7 @@ class ForecastJobSerializer(serializers.ModelSerializer):
         model = ForecastJob
         fields = ("id", "product_id", "product_name", "status", "horizon", "model_name", "forecast_id", "forecast_number", "result", "error", "requested_at", "started_at", "completed_at")
 
-    def get_error(self, obj):
+    def get_error(self, obj) -> dict | None:
         return {"code": "forecast_failed", "message": "La prévision a échoué. Vous pouvez la relancer."} if obj.status == ForecastJob.Status.FAILED else None
 
 

@@ -37,6 +37,9 @@ Suivi de la qualité prédictive
 - Journal d’activité du dépôt pour les propriétaires et administrateurs, avec
   une vue globale réservée au super administrateur de la plateforme.
 - E-mails transactionnels Brevo avec templates HTML responsive et fallback texte.
+- Totaux calculés avant validation sur ventes, commandes et réceptions.
+- Reçus, factures, bons de commande et bons de réception PDF homogènes.
+- API mobile JWT multi-dépôts, paginée côté base, auditée et idempotente.
 
 ## Technologies
 
@@ -51,6 +54,7 @@ Suivi de la qualité prédictive
 - scikit-learn
 - XGBoost
 - OpenPyXL
+- ReportLab pour les documents commerciaux PDF
 - SweetAlert2 pour les confirmations et notifications flash
 - Select2 pour les listes longues, avec repli sur les champs HTML natifs
 - Tailwind CSS 4 compilé pour le design system responsive Django
@@ -620,6 +624,13 @@ EMAIL_USE_SSL=false
 DEFAULT_FROM_EMAIL=NexaStock <adresse-verifiee@votre-domaine.com>
 CELERY_BROKER_URL=${{Redis.REDIS_URL}}
 CELERY_RESULT_BACKEND=${{Redis.REDIS_URL}}
+DJANGO_CACHE_URL=${{RedisCache.REDIS_URL}}
+API_LOGIN_RATE=10/minute
+API_SENSITIVE_WRITE_RATE=60/minute
+API_NUM_PROXIES=1
+WEB_LOGIN_MAX_ATTEMPTS=8
+WEB_LOGIN_WINDOW_SECONDS=300
+RATE_LIMIT_TRUST_X_FORWARDED_FOR=true
 CELERY_AUTOMATION_ENABLED=false
 FORECAST_MAX_DATA_AGE_DAYS=3
 FORECAST_CHAMPION_MIN_IMPROVEMENT=5
@@ -630,6 +641,17 @@ Django. Ils partagent `DATABASE_URL`, `CELERY_BROKER_URL` et
 `CELERY_RESULT_BACKEND`, mais n'exécutent ni migrations ni initialisation SQL.
 Ajoutez donc explicitement `INITIALIZE_DATABASE=false` et `RUN_ALEMBIC=false`
 aux variables de ces deux services.
+
+`DJANGO_CACHE_URL` alimente le cache partagé utilisé par la limitation de
+débit. Le second service Redis peut lui être dédié (`RedisCache` dans l'exemple)
+afin de ne pas mélanger ces clés avec la file Celery. Sans cette variable,
+Django utilise un cache mémoire local : cela dépanne en développement, mais ne
+garantit pas une limite commune entre plusieurs instances de production. Le
+login web est bloqué temporairement après 8 échecs depuis une même adresse IP ;
+l'API limite séparément les tentatives de connexion et les écritures. Activez
+`RATE_LIMIT_TRUST_X_FORWARDED_FOR` uniquement derrière le proxy Railway ou un
+autre proxy maîtrisé. `API_NUM_PROXIES=1` indique à Django REST Framework que
+Railway est le seul proxy placé devant l'application ; conservez `0` en local.
 
 Commande de démarrage du worker :
 
@@ -970,18 +992,29 @@ remplace pas le propriétaire métier d’un dépôt. La matrice fonctionnelle e
 donc volontairement limitée à `OWNER`, `ADMIN`, `ANALYST` et `VIEWER` ; l’ancien
 rôle `MANAGER` est automatiquement converti en `ADMIN` par migration.
 
-L'API initiale est exposée sous `/api/v1/` :
+L'API mobile versionnée est exposée sous `/api/v1/` :
 
+- `POST /api/v1/auth/login/` : connexion par e-mail ou téléphone et émission JWT ;
+- `POST /api/v1/auth/refresh/` : rotation du jeton, refusée sans adhésion active ;
 - `GET /api/v1/me/` : utilisateur connecté ;
 - `GET /api/v1/companies/` : dépôts accessibles ;
 - `GET /api/v1/context/` : utilisateur, dépôt actif et rôle.
 - `GET /api/v1/dashboard/summary/` : KPI du seul dépôt actif.
-- `GET /api/v1/products/` : catalogue du dépôt actif ; filtres `q` et `status`.
-- `GET /api/v1/stocks/` : dernière situation de stock ; filtres `q` et `status`.
-- `GET /api/v1/sales/` : ventes récentes et KPI du dépôt actif.
+- `GET/POST /api/v1/products/`, `/customers/`, `/suppliers/` et leurs détails ;
+- `GET /api/v1/stocks/` et `/stocks/<product_id>/` ;
+- `GET/POST /api/v1/sales/`, détail, modification, annulation et reçu PDF ;
+- mouvements, réceptions, commandes fournisseur et transitions explicites ;
+- jobs de prévision asynchrones et consultation de leur résultat ;
+- schéma OpenAPI `/api/v1/schema/` et documentation `/api/v1/docs/`.
 
-Cette première API utilise la session Django. Une authentification par jeton sera
-ajoutée lorsque le client mobile sera développé.
+Les routes métier demandent `X-Company-ID`. Les mutations mobiles acceptent
+`Idempotency-Key` : rejouer la même requête retourne la première réponse sans
+dupliquer la vente, le stock ou la commande. Les clés expirent après sept jours.
+Le nettoyage manuel peut être lancé avec :
+
+```bash
+docker compose exec web python backend/manage.py cleanup_idempotency_records
+```
 
 ## Espace opérationnel Django
 
@@ -1004,6 +1037,10 @@ Après connexion et sélection du dépôt, Django expose les écrans métier sui
 | `/ventes/` | Transactions et KPI par période | Tous les membres actifs |
 | `/ventes/nouvelle/` | Saisie d'une vente et sortie du stock | Propriétaire, administrateur |
 | `/ventes/<id>/` | Détail d'une vente et de ses lignes | Tous les membres actifs |
+| `/ventes/<id>/recu.pdf` | Reçu de vente imprimable | Tous les membres actifs |
+| `/ventes/<id>/facture.pdf` | Facture de vente imprimable | Tous les membres actifs |
+| `/stocks/reception/<id>/bon.pdf` | Bon de réception fournisseur | Tous les membres actifs |
+| `/reapprovisionnement/commandes/<id>/bon.pdf` | Bon de commande fournisseur | Tous les membres actifs |
 | `/compte/profil/` | Informations personnelles du compte | Utilisateur connecté |
 
 Le code d'un produit n'est jamais saisi dans le formulaire : PostgreSQL le

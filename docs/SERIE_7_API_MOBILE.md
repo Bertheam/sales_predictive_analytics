@@ -1,11 +1,12 @@
 # Série 7 — API mobile Django REST Framework
 
-- Statut : **déléguée à un autre développeur — socle tenant disponible**
-- Priorité : peut démarrer après récupération de la révision contenant le socle Série 3
-- Branche recommandée : `feature/api-mobile-v1`
+- Statut : **implémentée et validée localement sur SPA-2**
+- Socle : JWT, contexte multi-dépôts, endpoints P0, OpenAPI, throttling,
+  idempotence, audit et pagination SQL livrés
+- Branche d'intégration : `feature/SPA-2`
 
-Ce document est un cahier technique autonome. Il peut être donné directement
-à un développeur ou à son Codex après récupération du projet.
+Ce document conserve le contrat fonctionnel de l'API et sert désormais de
+référence de validation et de non-régression.
 
 ## 1. Mission à donner à Codex
 
@@ -45,32 +46,34 @@ doit permettre :
 L’API ne remplace ni Django HTML ni Streamlit. Elle devient un troisième client
 des mêmes services métier.
 
-## 3. État actuel du code
+## 3. État implémenté
 
-Le projet possède déjà :
+Le projet possède désormais :
 
 - Django REST Framework dans `backend/api/` ;
 - des endpoints de lecture pour l’utilisateur, les dépôts, le tableau de bord,
   les produits, les stocks et les ventes ;
-- une authentification DRF par session Django ;
+- une authentification JWT avec refresh rotatif, en complément de la session Django ;
 - une authentification web par e-mail ou téléphone dans
   `accounts.backends.EmailOrPhoneBackend` ;
-- un dépôt actif conservé dans `request.session["active_company_id"]` ;
+- un dépôt explicite via `X-Company-ID`, contrôlé contre l'adhésion active ;
 - les rôles `OWNER`, `ADMIN`, `ANALYST` et `VIEWER` ;
 - les règles métier de ventes et stocks dans `operations` ;
 - les commandes fournisseur dans `decisions` ;
 - les prévisions asynchrones dans `forecasting` et Celery ;
-- la piste d’audit dans `audit` ;
+- la piste d’audit dans `audit`, y compris les transitions de commande ;
+- les écritures produits, clients, fournisseurs, ventes, réceptions et commandes ;
+- l'idempotence persistée des mutations mobiles sensibles ;
+- la pagination exécutée en base pour produits, stocks et ventes ;
+- le throttling du login et des écritures sensibles ;
+- un schéma OpenAPI documentant les en-têtes métier.
 - PostgreSQL RLS et les services SQLAlchemy limités par dépôt.
 
-Limites à corriger pour le mobile :
+Travaux de validation restant avant un pilote mobile :
 
-- un client mobile ne doit pas dépendre de la session du navigateur ;
-- l’API actuelle ne possède pas de jetons d’accès mobiles ;
-- le dépôt actif n’est pas encore résolu après authentification par jeton ;
-- la majorité des endpoints d’écriture manque ;
-- les listes ne possèdent pas encore toutes une pagination API côté base ;
-- l’API n’expose pas encore de schéma OpenAPI complet.
+- maintenir un test d'intégration API → Celery → résultat de prévision ;
+- exécuter les parcours mobiles sur un client Flutter réel lorsqu'il existera ;
+- surveiller les seuils de throttling à partir de l'usage de production.
 
 ## 4. Dépendance avec la Série 3
 

@@ -25,9 +25,12 @@ def list_categories(company_id):
         return dict_rows(cursor)
 
 
-def product_catalog(company_id, *, query="", category_id="", status="active"):
+def product_catalog(
+    company_id, *, query="", category_id="", status="active",
+    stock_status="all", ordering="name", limit=None, offset=0,
+):
     if connection.vendor != "postgresql":
-        return [], {"total": 0, "active": 0, "low_stock": 0, "value": 0}
+        return [], {"total": 0, "active": 0, "low_stock": 0, "value": 0, "filtered_count": 0}
     params = [str(company_id)]
     filters = ["p.company_id = %s"]
     if query:
@@ -43,7 +46,27 @@ def product_catalog(company_id, *, query="", category_id="", status="active"):
         filters.append("p.is_active = FALSE AND p.deleted_at IS NULL")
     elif status == "archived":
         filters.append("p.deleted_at IS NOT NULL")
+    stock_filters = {
+        "OK": "stock.closing_stock > p.minimum_stock",
+        "LOW": "stock.closing_stock > 0 AND stock.closing_stock <= p.minimum_stock",
+        "OUT": "stock.closing_stock IS NOT NULL AND stock.closing_stock <= 0",
+        "UNTRACKED": "stock.closing_stock IS NULL",
+    }
+    if stock_status in stock_filters:
+        filters.append(stock_filters[stock_status])
     where = " AND ".join(filters)
+    ordering_columns = {
+        "name": "p.name", "code": "p.code",
+        "selling_price": "p.selling_price", "stock": "stock.closing_stock",
+    }
+    descending = str(ordering).startswith("-")
+    order_column = ordering_columns.get(str(ordering).lstrip("-"), "p.name")
+    order_clause = f"{order_column} {'DESC' if descending else 'ASC'} NULLS LAST, p.id"
+    page_clause = ""
+    page_params = []
+    if limit is not None:
+        page_clause = "LIMIT %s OFFSET %s"
+        page_params = [int(limit), max(int(offset), 0)]
     with tenant_cursor(company_id) as cursor:
         cursor.execute(f"""
             SELECT
@@ -69,9 +92,22 @@ def product_catalog(company_id, *, query="", category_id="", status="active"):
                 LIMIT 1
             ) stock ON TRUE
             WHERE {where}
-            ORDER BY p.is_active DESC, p.name
-        """, params)
+            ORDER BY {order_clause}
+            {page_clause}
+        """, [*params, *page_params])
         products = dict_rows(cursor)
+        cursor.execute(f"""
+            SELECT COUNT(*)
+            FROM products p
+            LEFT JOIN LATERAL (
+                SELECT ds.closing_stock
+                FROM daily_stocks ds
+                WHERE ds.company_id=p.company_id AND ds.product_id=p.id
+                ORDER BY ds.stock_date DESC LIMIT 1
+            ) stock ON TRUE
+            WHERE {where}
+        """, params)
+        filtered_count = cursor.fetchone()[0]
         cursor.execute("""
             WITH latest AS (
                 SELECT DISTINCT ON (ds.product_id)
@@ -95,6 +131,7 @@ def product_catalog(company_id, *, query="", category_id="", status="active"):
     return products, {
         "total": values[0], "active": values[1],
         "low_stock": values[2], "value": values[3],
+        "filtered_count": filtered_count,
     }
 
 
@@ -198,9 +235,12 @@ def list_customer_types(company_id):
         return dict_rows(cursor)
 
 
-def customer_catalog(company_id, *, query="", customer_type_id="", status="active"):
+def customer_catalog(
+    company_id, *, query="", customer_type_id="", status="active",
+    ordering="name", limit=None, offset=0,
+):
     if connection.vendor != "postgresql":
-        return [], {"total": 0, "active": 0, "archived": 0, "with_phone": 0}
+        return [], {"total": 0, "active": 0, "archived": 0, "with_phone": 0, "filtered_count": 0}
     params = [str(company_id)]
     filters = ["c.company_id=%s"]
     if query:
@@ -216,6 +256,13 @@ def customer_catalog(company_id, *, query="", customer_type_id="", status="activ
         filters.append("c.is_active=FALSE AND c.deleted_at IS NULL")
     elif status == "archived":
         filters.append("c.deleted_at IS NOT NULL")
+    ordering_columns = {"name": "c.name", "code": "c.code", "city": "c.city"}
+    descending = str(ordering).startswith("-")
+    order_column = ordering_columns.get(str(ordering).lstrip("-"), "c.name")
+    page_clause, page_params = "", []
+    if limit is not None:
+        page_clause, page_params = "LIMIT %s OFFSET %s", [int(limit), max(int(offset), 0)]
+    where = " AND ".join(filters)
     with tenant_cursor(company_id) as cursor:
         cursor.execute(f"""
             SELECT c.id, c.code, c.name, c.customer_type_id, ct.name AS type_name,
@@ -226,11 +273,14 @@ def customer_catalog(company_id, *, query="", customer_type_id="", status="activ
             JOIN customer_types ct
               ON ct.company_id=c.company_id AND ct.id=c.customer_type_id
             LEFT JOIN sales s ON s.company_id=c.company_id AND s.customer_id=c.id
-            WHERE {' AND '.join(filters)}
+            WHERE {where}
             GROUP BY c.id, ct.name
-            ORDER BY c.deleted_at NULLS FIRST, c.is_active DESC, c.name
-        """, params)
+            ORDER BY {order_column} {'DESC' if descending else 'ASC'} NULLS LAST, c.id
+            {page_clause}
+        """, [*params, *page_params])
         customers = dict_rows(cursor)
+        cursor.execute(f"SELECT COUNT(*) FROM customers c WHERE {where}", params)
+        filtered_count = cursor.fetchone()[0]
         cursor.execute("""
             SELECT COUNT(*),
                    COUNT(*) FILTER (WHERE is_active=TRUE AND deleted_at IS NULL),
@@ -242,6 +292,7 @@ def customer_catalog(company_id, *, query="", customer_type_id="", status="activ
     return customers, {
         "total": values[0], "active": values[1],
         "archived": values[2], "with_phone": values[3],
+        "filtered_count": filtered_count,
     }
 
 
@@ -317,9 +368,12 @@ def set_customer_archived(company_id, customer_id, *, archived, user_id):
         return None if not row else {"id": row[0], "code": row[1], "name": row[2]}
 
 
-def supplier_catalog(company_id, *, query="", status="active"):
+def supplier_catalog(
+    company_id, *, query="", status="active", ordering="name",
+    limit=None, offset=0,
+):
     if connection.vendor != "postgresql":
-        return [], {"total": 0, "active": 0, "archived": 0, "receipt_count": 0}
+        return [], {"total": 0, "active": 0, "archived": 0, "receipt_count": 0, "filtered_count": 0}
     params = [str(company_id)]
     filters = ["s.company_id=%s"]
     if query:
@@ -332,6 +386,13 @@ def supplier_catalog(company_id, *, query="", status="active"):
         filters.append("s.is_active=FALSE AND s.deleted_at IS NULL")
     elif status == "archived":
         filters.append("s.deleted_at IS NOT NULL")
+    ordering_columns = {"name": "s.name", "code": "s.code", "city": "s.city"}
+    descending = str(ordering).startswith("-")
+    order_column = ordering_columns.get(str(ordering).lstrip("-"), "s.name")
+    page_clause, page_params = "", []
+    if limit is not None:
+        page_clause, page_params = "LIMIT %s OFFSET %s", [int(limit), max(int(offset), 0)]
+    where = " AND ".join(filters)
     with tenant_cursor(company_id) as cursor:
         cursor.execute(f"""
             SELECT s.id, s.code, s.name, s.phone, s.city, s.is_active, s.deleted_at,
@@ -340,11 +401,14 @@ def supplier_catalog(company_id, *, query="", status="active"):
             FROM suppliers s
             LEFT JOIN purchase_receipts pr
               ON pr.company_id=s.company_id AND pr.supplier_id=s.id
-            WHERE {' AND '.join(filters)}
+            WHERE {where}
             GROUP BY s.id
-            ORDER BY s.deleted_at NULLS FIRST, s.is_active DESC, s.name
-        """, params)
+            ORDER BY {order_column} {'DESC' if descending else 'ASC'} NULLS LAST, s.id
+            {page_clause}
+        """, [*params, *page_params])
         suppliers = dict_rows(cursor)
+        cursor.execute(f"SELECT COUNT(*) FROM suppliers s WHERE {where}", params)
+        filtered_count = cursor.fetchone()[0]
         cursor.execute("""
             SELECT COUNT(*),
                    COUNT(*) FILTER (WHERE is_active=TRUE AND deleted_at IS NULL),
@@ -360,6 +424,7 @@ def supplier_catalog(company_id, *, query="", status="active"):
     return suppliers, {
         "total": values[0], "active": values[1],
         "archived": values[2], "receipt_count": receipt_count,
+        "filtered_count": filtered_count,
     }
 
 
@@ -424,12 +489,47 @@ def set_supplier_archived(company_id, supplier_id, *, archived, user_id):
         return None if not row else {"id": row[0], "code": row[1], "name": row[2]}
 
 
-def stock_overview(company_id, *, query="", stock_status="all"):
-    products, summary = product_catalog(company_id, query=query, status="active")
-    if stock_status != "all":
-        products = [item for item in products if item["stock_status"] == stock_status]
+def stock_overview(
+    company_id, *, query="", stock_status="all", ordering="name",
+    limit=None, offset=0,
+):
+    products, summary = product_catalog(
+        company_id, query=query, status="active", stock_status=stock_status,
+        ordering=ordering, limit=limit, offset=offset,
+    )
     summary["quantity"] = sum((item["closing_stock"] or 0) for item in products)
     return products, summary
+
+
+def stock_detail(company_id, product_id):
+    if connection.vendor != "postgresql":
+        return None
+    with tenant_cursor(company_id) as cursor:
+        cursor.execute("""
+            SELECT p.id, p.code, p.name, pc.name AS category_name,
+                   p.minimum_stock, p.reorder_quantity,
+                   stock.closing_stock, stock.stock_date,
+                   CASE
+                     WHEN stock.closing_stock IS NULL THEN 'UNTRACKED'
+                     WHEN stock.closing_stock <= 0 THEN 'OUT'
+                     WHEN stock.closing_stock <= p.minimum_stock THEN 'LOW'
+                     ELSE 'OK'
+                   END AS stock_status
+            FROM products p
+            JOIN product_categories pc
+              ON pc.company_id=p.company_id AND pc.id=p.category_id
+            LEFT JOIN LATERAL (
+                SELECT ds.closing_stock, ds.stock_date
+                FROM daily_stocks ds
+                WHERE ds.company_id=p.company_id AND ds.product_id=p.id
+                ORDER BY ds.stock_date DESC LIMIT 1
+            ) stock ON TRUE
+            WHERE p.company_id=%s AND p.id=%s AND p.deleted_at IS NULL
+        """, [str(company_id), str(product_id)])
+        row = cursor.fetchone()
+        return None if not row else dict(
+            zip([column[0] for column in cursor.description], row)
+        )
 
 
 def inventory_history(company_id, *, limit=50):
@@ -478,9 +578,15 @@ def inventory_history(company_id, *, limit=50):
     return receipts, movements
 
 
-def sales_overview(company_id, *, start_date=None, end_date=None, query=""):
+def sales_overview(
+    company_id, *, start_date=None, end_date=None, query="",
+    ordering="-date", limit=None, offset=0,
+):
     if connection.vendor != "postgresql":
-        return [], {"revenue": 0, "count": 0, "quantity": 0, "average": 0}, None, None
+        return [], {
+            "revenue": 0, "count": 0, "quantity": 0, "average": 0,
+            "filtered_count": 0,
+        }, None, None
     with tenant_cursor(company_id) as cursor:
         cursor.execute(
             "SELECT MIN(sale_date), MAX(sale_date) FROM sales WHERE company_id = %s AND deleted_at IS NULL",
@@ -488,7 +594,10 @@ def sales_overview(company_id, *, start_date=None, end_date=None, query=""):
         )
         min_date, max_date = cursor.fetchone()
         if not max_date:
-            return [], {"revenue": 0, "count": 0, "quantity": 0, "average": 0}, None, None
+            return [], {
+                "revenue": 0, "count": 0, "quantity": 0, "average": 0,
+                "filtered_count": 0,
+            }, None, None
         end_date = end_date or max_date
         start_date = start_date or max(min_date, end_date - timedelta(days=29))
         params = [str(company_id), start_date, end_date]
@@ -498,6 +607,16 @@ def sales_overview(company_id, *, start_date=None, end_date=None, query=""):
             search = f"%{query}%"
             params.extend([search, search])
         where = " AND ".join(filters)
+        ordering_columns = {
+            "date": "s.sale_date", "sale_number": "s.sale_number",
+            "total": "s.total_amount", "customer": "customer_name",
+        }
+        descending = str(ordering).startswith("-")
+        order_column = ordering_columns.get(str(ordering).lstrip("-"), "s.sale_date")
+        secondary = ", s.sale_time DESC NULLS LAST" if str(ordering).lstrip("-") == "date" else ""
+        page_clause, page_params = "", []
+        if limit is not None:
+            page_clause, page_params = "LIMIT %s OFFSET %s", [int(limit), max(int(offset), 0)]
         cursor.execute(f"""
             SELECT
                 s.id, s.sale_number, s.sale_date, s.sale_time,
@@ -512,9 +631,18 @@ def sales_overview(company_id, *, start_date=None, end_date=None, query=""):
               ON si.sale_id = s.id AND si.company_id = s.company_id
             WHERE {where}
             GROUP BY s.id, c.name
-            ORDER BY s.sale_date DESC, s.sale_time DESC NULLS LAST
-        """, params)
+            ORDER BY {order_column} {'DESC' if descending else 'ASC'} NULLS LAST{secondary}, s.id
+            {page_clause}
+        """, [*params, *page_params])
         sales = dict_rows(cursor)
+        cursor.execute(f"""
+            SELECT COUNT(*)
+            FROM sales s
+            LEFT JOIN customers c
+              ON c.id=s.customer_id AND c.company_id=s.company_id
+            WHERE {where}
+        """, params)
+        filtered_count = cursor.fetchone()[0]
         cursor.execute("""
             SELECT COALESCE(SUM(s.total_amount), 0), COUNT(s.id),
                    COALESCE(SUM(items.quantity), 0), COALESCE(AVG(s.total_amount), 0)
@@ -530,6 +658,7 @@ def sales_overview(company_id, *, start_date=None, end_date=None, query=""):
     return sales, {
         "revenue": values[0], "count": values[1],
         "quantity": values[2], "average": values[3],
+        "filtered_count": filtered_count,
     }, start_date, end_date
 
 
@@ -827,12 +956,33 @@ def receipt_detail(company_id, receipt_id):
         return None
     with tenant_cursor(company_id) as cursor:
         cursor.execute("""
-            SELECT id, receipt_number, receipt_date, supplier_id, total_amount, status
-            FROM purchase_receipts
-            WHERE company_id=%s AND id=%s AND deleted_at IS NULL
+            SELECT pr.id, pr.receipt_number, pr.receipt_date, pr.supplier_id,
+                   s.name AS supplier_name, pr.total_amount, pr.status,
+                   CASE pr.status
+                     WHEN 'VALIDATED' THEN 'Validée'
+                     WHEN 'CANCELLED' THEN 'Annulée'
+                     ELSE pr.status
+                   END AS status_label
+            FROM purchase_receipts pr
+            JOIN suppliers s
+              ON s.company_id=pr.company_id AND s.id=pr.supplier_id
+            WHERE pr.company_id=%s AND pr.id=%s AND pr.deleted_at IS NULL
         """, [str(company_id), str(receipt_id)])
         row = cursor.fetchone()
-        return None if not row else dict(zip([column[0] for column in cursor.description], row))
+        if not row:
+            return None
+        receipt = dict(zip([column[0] for column in cursor.description], row))
+        cursor.execute("""
+            SELECT p.code, p.name, pri.quantity_packages, pri.units_per_package,
+                   pri.unit_cost, pri.total_cost
+            FROM purchase_receipt_items pri
+            JOIN products p
+              ON p.company_id=pri.company_id AND p.id=pri.product_id
+            WHERE pri.company_id=%s AND pri.purchase_receipt_id=%s
+            ORDER BY p.name
+        """, [str(company_id), str(receipt_id)])
+        receipt["items"] = dict_rows(cursor)
+        return receipt
 
 
 def update_receipt_metadata(company_id, receipt_id, user_id, values):

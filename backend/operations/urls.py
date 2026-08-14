@@ -34,6 +34,8 @@ urlpatterns = [
     path("fournisseurs/<uuid:supplier_id>/archiver/", views.supplier_archive, name="supplier-archive"),
     path("stocks/", views.stocks, name="stocks"),
     path("stocks/reception/nouvelle/", views.receipt_create, name="receipt-create"),
+    path("stocks/reception/<uuid:receipt_id>/", views.receipt_show, name="receipt-detail"),
+    path("stocks/reception/<uuid:receipt_id>/bon.pdf", views.receipt_document, name="receipt-document"),
     path("stocks/reception/<uuid:receipt_id>/modifier/", views.receipt_edit, name="receipt-edit"),
     path("stocks/reception/<uuid:receipt_id>/annuler/", views.receipt_cancel, name="receipt-cancel"),
     path("stocks/mouvement/nouveau/", views.movement_create, name="movement-create"),
@@ -41,6 +43,7 @@ urlpatterns = [
     path("ventes/nouvelle/", views.sale_create, name="sale-create"),
     path("ventes/<uuid:sale_id>/", views.sale_show, name="sale-detail"),
     path("ventes/<uuid:sale_id>/recu.pdf", views.sale_receipt, name="sale-receipt"),
+    path("ventes/<uuid:sale_id>/facture.pdf", views.sale_invoice, name="sale-invoice"),
     path("ventes/<uuid:sale_id>/modifier/", views.sale_edit, name="sale-edit"),
     path("ventes/<uuid:sale_id>/annuler/", views.sale_cancel, name="sale-cancel"),
 ]

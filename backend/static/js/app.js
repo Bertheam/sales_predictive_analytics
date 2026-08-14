@@ -456,18 +456,46 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  const saleForm = document.querySelector("[data-sale-form]");
-  if (saleForm) {
+  document.querySelectorAll("[data-live-total-form]").forEach((totalForm) => {
     const number = (value) => Number.parseFloat(String(value || "0").replace(",", ".")) || 0;
     const money = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
-    const refreshSaleTotals = () => {
+    const mode = totalForm.dataset.liveTotalForm;
+    let priceMap = {};
+    const priceMapElement = document.getElementById(totalForm.dataset.priceMap || "");
+    if (priceMapElement) {
+      try { priceMap = JSON.parse(priceMapElement.textContent || "{}"); } catch (_error) { priceMap = {}; }
+    }
+    const refreshTotals = () => {
       let total = 0;
-      saleForm.querySelectorAll("[data-form-row]").forEach((row) => {
-        if (row.hidden || row.querySelector('[name$="-DELETE"]')?.checked) return;
-        const quantity = number(row.querySelector('[name$="-quantity_packages"]')?.value);
-        const price = number(row.querySelector('[name$="-unit_price"]')?.value);
-        const discount = number(row.querySelector('[name$="-discount_amount"]')?.value);
-        const subtotal = Math.max(quantity * price - discount, 0);
+      let grossTotal = 0;
+      let discountTotal = 0;
+      let quantityTotal = 0;
+      let lineCount = 0;
+      const rows = totalForm.querySelectorAll("[data-form-row], [data-total-row]");
+      rows.forEach((row) => {
+        const deletion = row.querySelector('[name$="-DELETE"]');
+        if (row.hidden || deletion?.checked || deletion?.value === "on") return;
+        const quantity = number(
+          row.querySelector('[name$="-quantity_packages"], [name^="quantity_"]')?.value
+          || row.querySelector('[name$="-quantity_ordered"]')?.value
+        );
+        let price = number(
+          row.querySelector('[name$="-unit_price"], [name$="-unit_cost"], [name^="unit_cost_"]')?.value
+        );
+        if (mode === "order") {
+          const productId = row.querySelector('[name$="-product_id"]')?.value;
+          price = number(priceMap[productId]);
+        }
+        const discount = mode === "sale"
+          ? number(row.querySelector('[name$="-discount_amount"]')?.value)
+          : 0;
+        const gross = quantity * price;
+        const appliedDiscount = Math.min(Math.max(discount, 0), gross);
+        const subtotal = Math.max(gross - appliedDiscount, 0);
+        if (quantity > 0) lineCount += 1;
+        quantityTotal += quantity;
+        grossTotal += gross;
+        discountTotal += appliedDiscount;
         total += subtotal;
         let output = row.querySelector("[data-line-subtotal]");
         if (!output) {
@@ -475,14 +503,24 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         output.textContent = `Sous-total : ${money.format(subtotal)} FCFA`;
       });
-      const output = saleForm.querySelector("[data-sale-grand-total]");
-      if (output) output.textContent = `${money.format(total)} FCFA`;
+      const values = {
+        "[data-live-line-count]": String(lineCount),
+        "[data-live-total-quantity]": `${money.format(quantityTotal)} colis`,
+        "[data-live-gross-total]": `${money.format(grossTotal)} FCFA`,
+        "[data-live-discount-total]": `${money.format(discountTotal)} FCFA`,
+        "[data-live-grand-total]": `${money.format(total)} FCFA`,
+      };
+      Object.entries(values).forEach(([selector, value]) => {
+        const output = totalForm.querySelector(selector);
+        if (output) output.textContent = value;
+      });
     };
-    saleForm.addEventListener("input", refreshSaleTotals);
-    saleForm.addEventListener("change", refreshSaleTotals);
-    saleForm.addEventListener("click", () => window.setTimeout(refreshSaleTotals));
-    refreshSaleTotals();
-  }
+    totalForm.addEventListener("input", refreshTotals);
+    totalForm.addEventListener("change", refreshTotals);
+    totalForm.addEventListener("click", () => window.setTimeout(refreshTotals));
+    if (window.jQuery?.fn?.select2) window.jQuery(totalForm).on("select2:select select2:clear", refreshTotals);
+    refreshTotals();
+  });
 
   const autoRefresh = document.querySelector("[data-auto-refresh-url]");
   if (autoRefresh) {

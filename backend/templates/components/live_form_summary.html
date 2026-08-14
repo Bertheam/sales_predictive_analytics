@@ -1,0 +1,18 @@
+<aside class="live-form-summary" aria-live="polite">
+  <div class="live-form-summary__heading">
+    <span><i data-lucide="calculator" class="ui-icon" aria-hidden="true"></i></span>
+    <div>
+      <strong>Récapitulatif avant validation</strong>
+      <small>{{ note }}</small>
+    </div>
+  </div>
+  <div class="live-form-summary__metrics{% if show_discount %} has-discount{% endif %}">
+    <div><span>Produits</span><strong data-live-line-count>0</strong></div>
+    <div><span>Total colis</span><strong data-live-total-quantity>0</strong></div>
+    {% if show_discount %}
+      <div><span>Montant brut</span><strong data-live-gross-total>0 FCFA</strong></div>
+      <div><span>Total remises</span><strong data-live-discount-total>0 FCFA</strong></div>
+    {% endif %}
+    <div class="is-total"><span>{{ total_label|default:"Total" }}</span><strong data-live-grand-total>0 FCFA</strong></div>
+  </div>
+</aside>

@@ -1,27 +1,34 @@
 from django.urls import path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from rest_framework_simplejwt.views import TokenRefreshView
-
 from .views import (
-    CompanyListView, ContextView, DashboardSummaryView, ForecastJobDetailView,
+    ActiveMembershipTokenRefreshView, CompanyListView, ContextView,
+    CustomerDetailView, CustomerListView,
+    DashboardSummaryView, ForecastJobDetailView,
     ForecastJobListView, ForecastJobResultView, ForecastJobRetryView, LoginView,
-    LogoutView, MeView, MovementListView, ProductListView,
+    LogoutView, MeView, MovementListView, ProductDetailView, ProductListView,
     PurchaseOrderActionView, PurchaseOrderDetailView, PurchaseOrderListView,
     PurchaseOrderReceiptListView, PurchaseOrderReceiveView, ReceiptDetailView,
-    ReceiptListView, SaleDetailView, SaleListView, SaleReceiptView, StockListView,
+    ReceiptListView, SaleDetailView, SaleListView, SaleReceiptView,
+    StockDetailView, StockListView, SupplierDetailView, SupplierListView,
 )
 
 app_name = "api"
 urlpatterns = [
     path("auth/login/", LoginView.as_view(), name="login"),
-    path("auth/refresh/", TokenRefreshView.as_view(), name="refresh"),
+    path("auth/refresh/", ActiveMembershipTokenRefreshView.as_view(), name="refresh"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),
     path("companies/", CompanyListView.as_view(), name="companies"),
     path("context/", ContextView.as_view(), name="context"),
     path("dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
     path("products/", ProductListView.as_view(), name="products"),
+    path("products/<uuid:product_id>/", ProductDetailView.as_view(), name="product-detail"),
+    path("customers/", CustomerListView.as_view(), name="customers"),
+    path("customers/<uuid:customer_id>/", CustomerDetailView.as_view(), name="customer-detail"),
+    path("suppliers/", SupplierListView.as_view(), name="suppliers"),
+    path("suppliers/<uuid:supplier_id>/", SupplierDetailView.as_view(), name="supplier-detail"),
     path("stocks/", StockListView.as_view(), name="stocks"),
+    path("stocks/<uuid:product_id>/", StockDetailView.as_view(), name="stock-detail"),
     path("stock-movements/", MovementListView.as_view(), name="stock-movements"),
     path("sales/", SaleListView.as_view(), name="sales"),
     path("sales/<uuid:sale_id>/", SaleDetailView.as_view(), name="sale-detail"),
@@ -30,8 +37,9 @@ urlpatterns = [
     path("receipts/<uuid:receipt_id>/", ReceiptDetailView.as_view(), name="receipt-detail"),
     path("purchase-orders/", PurchaseOrderListView.as_view(), name="purchase-orders"),
     path("purchase-orders/<uuid:order_id>/", PurchaseOrderDetailView.as_view(), name="purchase-order-detail"),
-    path("purchase-orders/<uuid:order_id>/<str:action>/", PurchaseOrderActionView.as_view(), name="purchase-order-action"),
     path("purchase-orders/<uuid:order_id>/receive/", PurchaseOrderReceiveView.as_view(), name="purchase-order-receive"),
+    path("purchase-orders/<uuid:order_id>/send/", PurchaseOrderActionView.as_view(), {"action": "send"}, name="purchase-order-send"),
+    path("purchase-orders/<uuid:order_id>/cancel/", PurchaseOrderActionView.as_view(), {"action": "cancel"}, name="purchase-order-cancel"),
     path("purchase-order-receipts/", PurchaseOrderReceiptListView.as_view(), name="purchase-order-receipts"),
     path("forecast-jobs/", ForecastJobListView.as_view(), name="forecast-jobs"),
     path("forecast-jobs/<uuid:job_id>/", ForecastJobDetailView.as_view(), name="forecast-job-detail"),

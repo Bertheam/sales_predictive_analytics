@@ -135,6 +135,21 @@ class ProcurementWorkflowTests(TestCase):
         )
         return order, item
 
+    def test_purchase_order_document_is_downloaded_as_a_pdf(self):
+        order, _ = self.create_order()
+
+        response = self.client.get(
+            reverse("decisions:order-document", args=[order.id])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn(
+            f'filename="bon-commande-{order.order_number}.pdf"',
+            response["Content-Disposition"],
+        )
+        self.assertTrue(response.content.startswith(b"%PDF-1.4"))
+
     def test_approvisionnement_has_one_clear_three_step_navigation(self):
         response = self.client.get(reverse("decisions:orders"))
 
@@ -217,6 +232,11 @@ class ProcurementWorkflowTests(TestCase):
         self.assertContains(response, "data-remove-form-row")
         self.assertContains(response, "business-form--line-items")
         self.assertContains(response, "line-form manual-order-line")
+        self.assertContains(response, 'data-live-total-form="order"')
+        self.assertContains(response, "Récapitulatif avant validation")
+        self.assertContains(response, "data-live-total-quantity")
+        self.assertContains(response, "Préparer")
+        self.assertContains(response, "Réceptionner")
 
     @patch("decisions.views.operational_references")
     def test_owner_creates_one_supplier_order_from_prepared_plans(self, references):
@@ -314,6 +334,11 @@ class ProcurementWorkflowTests(TestCase):
             {"id": uuid4(), "number": "REC-002"},
         ]
         url = reverse("decisions:receive-order", args=[order.id])
+
+        page = self.client.get(url)
+        self.assertContains(page, 'data-live-total-form="receive"')
+        self.assertContains(page, "Récapitulatif avant validation")
+        self.assertContains(page, "data-live-total-quantity")
 
         response = self.client.post(
             url,

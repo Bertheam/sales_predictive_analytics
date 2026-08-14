@@ -46,6 +46,10 @@ from .data import (
 from .forms import CustomerForm, DataImportUploadForm, MovementForm, ProductForm, ReceiptEditForm, ReceiptForm, ReceiptItemFormSet, SaleEditForm, SaleForm, SaleItemFormSet, SupplierForm
 from .listing import sort_and_paginate
 from .models import PendingDataImport
+from .receipts import (
+    render_purchase_receipt_document,
+    render_sale_document,
+)
 from audit.models import AuditLog
 from audit.services import record_audit
 
@@ -567,41 +571,29 @@ def sale_show(request, sale_id):
     return render(request, "operations/sale_detail.html", {"sale": sale, "items": items, "can_manage": request.membership.role in MANAGEMENT_ROLES})
 
 
-def _pdf_escape(value):
-    return str(value).encode("latin-1", "replace").decode("latin-1").replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-
-
-def _simple_receipt_pdf(lines):
-    commands = ["BT", "/F1 11 Tf", "50 790 Td", "14 TL"]
-    for index, line in enumerate(lines):
-        if index:
-            commands.append("T*")
-        commands.append(f"({_pdf_escape(line)}) Tj")
-    commands.append("ET")
-    stream = "\n".join(commands).encode("latin-1")
-    objects = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>", b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>", b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream", b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
-    pdf = bytearray(b"%PDF-1.4\n"); offsets = [0]
-    for number, obj in enumerate(objects, 1):
-        offsets.append(len(pdf)); pdf.extend(f"{number} 0 obj\n".encode()); pdf.extend(obj); pdf.extend(b"\nendobj\n")
-    xref = len(pdf); pdf.extend(f"xref\n0 {len(objects)+1}\n0000000000 65535 f \n".encode())
-    for offset in offsets[1:]:
-        pdf.extend(f"{offset:010d} 00000 n \n".encode())
-    pdf.extend(f"trailer << /Size {len(objects)+1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF".encode())
-    return bytes(pdf)
-
-
 @company_required
 def sale_receipt(request, sale_id):
-    from django.http import Http404, HttpResponse
     sale, items = sale_detail(request.company.id, sale_id)
     if not sale:
         raise Http404("Vente introuvable dans ce dépôt.")
-    lines = ["NEXASTOCK - RECU DE VENTE", "", f"Vente : {sale['sale_number']}", f"Date : {sale['sale_date']:%d/%m/%Y}", f"Depot : {request.company.name}", f"Client : {sale['customer_name']}", "", "PRODUITS"]
-    for item in items:
-        lines.append(f"{item['name']} - {item['quantity_packages']} x {item['unit_price']} = {item['total_amount']} {request.company.currency}")
-    lines.extend(["", f"Sous-total : {sale['subtotal']} {request.company.currency}", f"Remise : {sale['discount_amount']} {request.company.currency}", f"TOTAL : {sale['total_amount']} {request.company.currency}", f"Paiement : {sale['payment_method']} / {sale['payment_status']}"])
-    response = HttpResponse(_simple_receipt_pdf(lines), content_type="application/pdf")
+    response = HttpResponse(
+        render_sale_document(sale, items, request.company),
+        content_type="application/pdf",
+    )
     response["Content-Disposition"] = f'attachment; filename="recu-{sale["sale_number"]}.pdf"'
+    return response
+
+
+@company_required
+def sale_invoice(request, sale_id):
+    sale, items = sale_detail(request.company.id, sale_id)
+    if not sale:
+        raise Http404("Vente introuvable dans ce dépôt.")
+    response = HttpResponse(
+        render_sale_document(sale, items, request.company, invoice=True),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = f'attachment; filename="facture-{sale["sale_number"]}.pdf"'
     return response
 
 
@@ -707,6 +699,39 @@ def receipt_create(request):
             "return_to_procurement": return_to_procurement,
         },
     )
+
+
+@company_required
+def receipt_show(request, receipt_id):
+    receipt = receipt_detail(request.company.id, receipt_id)
+    if not receipt:
+        raise Http404("Réception introuvable dans ce dépôt.")
+    return render(
+        request,
+        "operations/receipt_detail.html",
+        {
+            "receipt": receipt,
+            "items": receipt["items"],
+            "can_manage": request.membership.role in MANAGEMENT_ROLES,
+        },
+    )
+
+
+@company_required
+def receipt_document(request, receipt_id):
+    receipt = receipt_detail(request.company.id, receipt_id)
+    if not receipt:
+        raise Http404("Réception introuvable dans ce dépôt.")
+    response = HttpResponse(
+        render_purchase_receipt_document(
+            receipt, receipt["items"], request.company
+        ),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="bon-reception-{receipt["receipt_number"]}.pdf"'
+    )
+    return response
 
 
 @company_roles_required(*MANAGEMENT_ROLES)
