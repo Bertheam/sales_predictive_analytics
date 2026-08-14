@@ -1,10 +1,18 @@
+from django.core.cache import cache
 from django.test import TestCase
+from django.test import override_settings
 from django.urls import reverse
 
 from .models import User
 
 
 class RegistrationTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    def tearDown(self):
+        cache.clear()
+
     def test_registration_creates_user_and_starts_onboarding(self):
         response = self.client.post(reverse("accounts:register"), {
             "full_name": "Awa Traoré",
@@ -76,6 +84,23 @@ class RegistrationTests(TestCase):
         self.assertRedirects(
             phone_response, reverse("dashboard:home"), fetch_redirect_response=False
         )
+
+    @override_settings(WEB_LOGIN_MAX_ATTEMPTS=2, WEB_LOGIN_WINDOW_SECONDS=300)
+    def test_web_login_is_temporarily_limited_after_repeated_failures(self):
+        User.objects.create_user(
+            email="limited@example.com",
+            password="A-secure-password-2026",
+            full_name="Compte limité",
+        )
+        payload = {"username": "limited@example.com", "password": "incorrect"}
+
+        self.assertEqual(self.client.post(reverse("accounts:login"), payload).status_code, 200)
+        self.assertEqual(self.client.post(reverse("accounts:login"), payload).status_code, 200)
+        response = self.client.post(reverse("accounts:login"), payload)
+
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response["Retry-After"], "300")
+        self.assertContains(response, "Trop de tentatives de connexion", status_code=429)
 
 
 class ProfileTests(TestCase):

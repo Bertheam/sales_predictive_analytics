@@ -97,6 +97,120 @@ class OperationAccessTests(TestCase):
 
         self.assertContains(response, "Espèces")
         self.assertNotContains(response, ">CASH<")
+        self.assertContains(response, "Télécharger le reçu")
+        self.assertNotContains(response, "Télécharger la facture")
+
+    @patch("operations.views.sale_detail")
+    def test_unpaid_sale_detail_only_offers_the_invoice(self, sale_detail_mock):
+        sale_id = uuid4()
+        sale_detail_mock.return_value = ({
+            "id": sale_id,
+            "sale_number": "VTE-A-PAYER",
+            "customer_name": "Client test",
+            "sale_date": date.today(),
+            "sale_time": time(10, 0),
+            "salesperson_name": "Gestionnaire Test",
+            "payment_method": "CREDIT",
+            "payment_status": "UNPAID",
+            "subtotal": Decimal("10000"),
+            "discount_amount": Decimal("0"),
+            "total_amount": Decimal("10000"),
+        }, [])
+
+        response = self.client.get(reverse("operations:sale-detail", args=[sale_id]))
+
+        self.assertContains(response, "Télécharger la facture")
+        self.assertNotContains(response, "Télécharger le reçu")
+
+    @patch("operations.views.sale_detail")
+    def test_sale_receipt_is_downloaded_as_a_pdf(self, sale_detail_mock):
+        sale_id = uuid4()
+        sale_detail_mock.return_value = ({
+            "id": sale_id,
+            "sale_number": "VTE-TEST",
+            "customer_name": "Client test",
+            "sale_date": date(2026, 8, 14),
+            "payment_method": "CASH",
+            "payment_status": "PAID",
+            "subtotal": Decimal("10000"),
+            "discount_amount": Decimal("0"),
+            "total_amount": Decimal("10000"),
+        }, [{
+            "name": "Cola 50 cl",
+            "quantity_packages": Decimal("2"),
+            "unit_price": Decimal("5000"),
+            "total_amount": Decimal("10000"),
+        }])
+
+        response = self.client.get(reverse("operations:sale-receipt", args=[sale_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn('filename="recu-VTE-TEST.pdf"', response["Content-Disposition"])
+        self.assertTrue(response.content.startswith(b"%PDF-1.4"))
+
+    @patch("operations.views.sale_detail")
+    def test_sale_invoice_is_downloaded_as_a_pdf(self, sale_detail_mock):
+        sale_id = uuid4()
+        sale_detail_mock.return_value = ({
+            "id": sale_id,
+            "sale_number": "VTE-FACTURE",
+            "customer_name": "Client facture",
+            "sale_date": date(2026, 8, 14),
+            "payment_method": "MOBILE_MONEY",
+            "payment_status": "PAID",
+            "subtotal": Decimal("15000"),
+            "discount_amount": Decimal("1000"),
+            "total_amount": Decimal("14000"),
+        }, [{
+            "code": "PRD-001",
+            "name": "Eau minérale 1,5 L",
+            "quantity_packages": Decimal("2"),
+            "unit_price": Decimal("7500"),
+            "discount_amount": Decimal("1000"),
+            "total_amount": Decimal("14000"),
+        }])
+
+        response = self.client.get(reverse("operations:sale-invoice", args=[sale_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn(
+            'filename="facture-VTE-FACTURE.pdf"',
+            response["Content-Disposition"],
+        )
+        self.assertTrue(response.content.startswith(b"%PDF-1.4"))
+
+    @patch("operations.views.receipt_detail")
+    def test_purchase_receipt_document_is_downloaded_as_a_pdf(self, receipt_detail_mock):
+        receipt_id = uuid4()
+        receipt_detail_mock.return_value = {
+            "id": receipt_id,
+            "receipt_number": "REC-TEST",
+            "receipt_date": date(2026, 8, 14),
+            "supplier_name": "Fournisseur Test",
+            "status": "VALIDATED",
+            "status_label": "Validée",
+            "total_amount": Decimal("12000"),
+            "items": [{
+                "code": "PRD-001", "name": "Cola 50 cl",
+                "quantity_packages": Decimal("2"),
+                "unit_cost": Decimal("6000"),
+                "total_cost": Decimal("12000"),
+            }],
+        }
+
+        response = self.client.get(
+            reverse("operations:receipt-document", args=[receipt_id])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn(
+            'filename="bon-reception-REC-TEST.pdf"',
+            response["Content-Disposition"],
+        )
+        self.assertTrue(response.content.startswith(b"%PDF-1.4"))
 
     @patch("operations.views.receipt_detail", return_value=None)
     def test_foreign_or_unknown_receipt_is_not_exposed(self, _receipt_detail):
@@ -177,6 +291,13 @@ class OperationAccessTests(TestCase):
         self.assertContains(response, "data-remove-form-row")
         self.assertContains(response, "business-form--line-items")
         self.assertContains(response, "line-form sale-line")
+        self.assertContains(response, 'data-live-total-form="sale"')
+        self.assertContains(response, "data-live-grand-total")
+        self.assertContains(response, "Récapitulatif avant validation")
+        self.assertContains(response, "data-live-line-count")
+        self.assertContains(response, "data-live-total-quantity")
+        self.assertContains(response, "data-live-gross-total")
+        self.assertContains(response, "data-live-discount-total")
 
     def test_new_receipt_starts_with_one_dynamic_product_line(self):
         response = self.client.get(reverse("operations:receipt-create"))
@@ -188,6 +309,10 @@ class OperationAccessTests(TestCase):
         self.assertContains(response, "data-remove-form-row")
         self.assertContains(response, "business-form--line-items")
         self.assertContains(response, "line-form receipt-line")
+        self.assertContains(response, 'data-live-total-form="receipt"')
+        self.assertContains(response, "Récapitulatif avant validation")
+        self.assertContains(response, "data-live-total-quantity")
+        self.assertNotContains(response, "data-live-discount-total")
 
     def test_viewer_cannot_create_stock_or_sale_operations(self):
         self.membership.role = Membership.Role.VIEWER

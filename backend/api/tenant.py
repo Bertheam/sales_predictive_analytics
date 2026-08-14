@@ -44,5 +44,5 @@ def require_api_company(request):
             "code": "company_context_required",
             "detail": "Sélectionnez un dépôt actif ou transmettez X-Company-ID.",
         },
-        status=status.HTTP_409_CONFLICT,
+        status=status.HTTP_400_BAD_REQUEST,
     )

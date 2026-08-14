@@ -1,6 +1,6 @@
 # Backlogs techniques NexaStock
 
-Dernière mise à jour : 12 août 2026
+Dernière mise à jour : 14 août 2026
 
 Ce document centralise les chantiers de code restant après les lots fonctionnels
 déjà réalisés. Les tâches doivent être exécutées par séries, avec tests de
@@ -17,7 +17,7 @@ non-régression et sans réinitialiser une base existante.
 | 5 | Série 6 — Sécurité et supervision | Planifiée | Par incréments |
 | 6 | Série 2 — Découpage des gros fichiers | Planifiée | Refactoring guidé par les tests |
 | 7 | Série 8 — Tests d’interface | Planifiée | Après stabilisation des parcours |
-| — | Série 7 — API mobile | **Déléguée** | Voir `SERIE_7_API_MOBILE.md` |
+| — | Série 7 — API mobile | **Implémentée et validée localement** | Voir `SERIE_7_API_MOBILE.md` |
 
 La CI distante n’est pas incluse dans le périmètre immédiat. Les tests locaux et
 Docker restent obligatoires. GitHub Actions pourra être ajouté plus tard.
@@ -202,11 +202,12 @@ gestion ne peut lire ou modifier que le dépôt explicitement autorisé.
 
 ## Série 7 — API mobile
 
-Cette série est confiée à un collègue. Son périmètre, les endpoints, règles de
-sécurité, tests et critères de fin sont définis dans
-[`SERIE_7_API_MOBILE.md`](SERIE_7_API_MOBILE.md).
-
-La Série 7 doit se rebaser sur le socle de contexte tenant livré par la Série 3.
+La Série 7 est intégrée sur `feature/SPA-2` : JWT, contexte tenant explicite,
+endpoints P0, idempotence, audit, pagination SQL, throttling et OpenAPI. Son
+contrat et ses validations sont définis dans
+[`SERIE_7_API_MOBILE.md`](SERIE_7_API_MOBILE.md). Le test d'intégration complet
+du moteur ML couvre désormais API → tâche Celery → sélection du modèle →
+prévision → persistance du résultat, sans mocker la tâche.
 
 ## Série 8 — Tests d’interface et accessibilité
 

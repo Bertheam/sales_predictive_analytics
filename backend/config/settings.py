@@ -33,6 +33,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
+    "drf_spectacular",
     "accounts",
     "companies",
     "dashboard",
@@ -123,6 +125,20 @@ STORAGES = {
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+CACHE_URL = os.getenv("DJANGO_CACHE_URL", "").strip()
+CACHES = {
+    "default": {
+        "BACKEND": (
+            "django.core.cache.backends.redis.RedisCache"
+            if CACHE_URL and not TESTING
+            else "django.core.cache.backends.locmem.LocMemCache"
+        ),
+        "LOCATION": CACHE_URL if CACHE_URL and not TESTING else "nexastock-local-cache",
+        "KEY_PREFIX": "nexastock",
+        "TIMEOUT": 300,
+    }
+}
+
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "dashboard:home"
 LOGOUT_REDIRECT_URL = "accounts:login"
@@ -188,7 +204,39 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "api.exceptions.api_exception_handler",
+    "DEFAULT_THROTTLE_CLASSES": ["api.throttling.SensitiveWriteRateThrottle"],
+    "DEFAULT_THROTTLE_RATES": {
+        "login": os.getenv("API_LOGIN_RATE", "10/minute"),
+        "sensitive_write": os.getenv("API_SENSITIVE_WRITE_RATE", "60/minute"),
+    },
+    "NUM_PROXIES": int(os.getenv("API_NUM_PROXIES", "0")),
+}
+
+WEB_LOGIN_MAX_ATTEMPTS = int(os.getenv("WEB_LOGIN_MAX_ATTEMPTS", "8"))
+WEB_LOGIN_WINDOW_SECONDS = int(os.getenv("WEB_LOGIN_WINDOW_SECONDS", "300"))
+RATE_LIMIT_TRUST_X_FORWARDED_FOR = os.getenv(
+    "RATE_LIMIT_TRUST_X_FORWARDED_FOR", "false"
+).lower() in {"1", "true", "yes"}
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+}
+SPECTACULAR_SETTINGS = {
+    "TITLE": "NexaStock Mobile API",
+    "DESCRIPTION": "API multi-dépôts. Les routes métier exigent X-Company-ID.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }

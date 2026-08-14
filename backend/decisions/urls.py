@@ -13,6 +13,7 @@ urlpatterns = [
     ),
     path("commandes/creer/", views.create_order, name="create-order"),
     path("commandes/<uuid:order_id>/", views.order_detail, name="order-detail"),
+    path("commandes/<uuid:order_id>/bon.pdf", views.order_document, name="order-document"),
     path(
         "commandes/<uuid:order_id>/envoyer/",
         views.send_order,

@@ -104,7 +104,9 @@ def compare_models(
     if len(clean_train) < 60 or evaluation_data.empty:
         raise ValueError(
             "Pas assez de jours hors rupture pour entraîner et évaluer "
-            "les modèles."
+            "les modèles "
+            f"({len(clean_train)} jours d’entraînement et "
+            f"{len(evaluation_data)} jours d’évaluation exploitables)."
         )
 
     metrics = {

@@ -46,6 +46,10 @@ from .data import (
 from .forms import CustomerForm, DataImportUploadForm, MovementForm, ProductForm, ReceiptEditForm, ReceiptForm, ReceiptItemFormSet, SaleEditForm, SaleForm, SaleItemFormSet, SupplierForm
 from .listing import sort_and_paginate
 from .models import PendingDataImport
+from .receipts import (
+    render_purchase_receipt_document,
+    render_sale_document,
+)
 from audit.models import AuditLog
 from audit.services import record_audit
 
@@ -567,6 +571,32 @@ def sale_show(request, sale_id):
     return render(request, "operations/sale_detail.html", {"sale": sale, "items": items, "can_manage": request.membership.role in MANAGEMENT_ROLES})
 
 
+@company_required
+def sale_receipt(request, sale_id):
+    sale, items = sale_detail(request.company.id, sale_id)
+    if not sale:
+        raise Http404("Vente introuvable dans ce dépôt.")
+    response = HttpResponse(
+        render_sale_document(sale, items, request.company),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = f'attachment; filename="recu-{sale["sale_number"]}.pdf"'
+    return response
+
+
+@company_required
+def sale_invoice(request, sale_id):
+    sale, items = sale_detail(request.company.id, sale_id)
+    if not sale:
+        raise Http404("Vente introuvable dans ce dépôt.")
+    response = HttpResponse(
+        render_sale_document(sale, items, request.company, invoice=True),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = f'attachment; filename="facture-{sale["sale_number"]}.pdf"'
+    return response
+
+
 @company_roles_required(*MANAGEMENT_ROLES)
 def sale_edit(request, sale_id):
     sale, _ = sale_detail(request.company.id, sale_id)
@@ -669,6 +699,39 @@ def receipt_create(request):
             "return_to_procurement": return_to_procurement,
         },
     )
+
+
+@company_required
+def receipt_show(request, receipt_id):
+    receipt = receipt_detail(request.company.id, receipt_id)
+    if not receipt:
+        raise Http404("Réception introuvable dans ce dépôt.")
+    return render(
+        request,
+        "operations/receipt_detail.html",
+        {
+            "receipt": receipt,
+            "items": receipt["items"],
+            "can_manage": request.membership.role in MANAGEMENT_ROLES,
+        },
+    )
+
+
+@company_required
+def receipt_document(request, receipt_id):
+    receipt = receipt_detail(request.company.id, receipt_id)
+    if not receipt:
+        raise Http404("Réception introuvable dans ce dépôt.")
+    response = HttpResponse(
+        render_purchase_receipt_document(
+            receipt, receipt["items"], request.company
+        ),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="bon-reception-{receipt["receipt_number"]}.pdf"'
+    )
+    return response
 
 
 @company_roles_required(*MANAGEMENT_ROLES)

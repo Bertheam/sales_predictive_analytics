@@ -2,7 +2,7 @@
 {% block title %}Nouvelle vente · NexaStock{% endblock %}
 {% block content %}
 {% url 'operations:sales' as sales_url %}{% include "components/page_header.html" with back_href=sales_url back_label="Retour aux ventes" eyebrow="Encaissement" title="Nouvelle vente" subtitle="La validation diminue immédiatement le stock des produits vendus." only %}
-<form method="post" class="panel business-form business-form--line-items">{% csrf_token %}
+<form method="post" class="panel business-form business-form--line-items" data-live-total-form="sale">{% csrf_token %}
   {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
   <div class="form-section"><div><span class="step-badge">01</span><h2>Informations de vente</h2><p>Client, date et situation du paiement.</p></div><div class="form-grid">{% for field in form %}{% if field.name == 'notes' %}{% include "components/form_field.html" with field=field span_two=True only %}{% else %}{% include "components/form_field.html" with field=field only %}{% endif %}{% endfor %}</div></div>
   <div class="form-section"><div><span class="step-badge">02</span><h2>Produits vendus</h2><p>Commencez avec un produit, puis ajoutez seulement les lignes nécessaires.</p></div><div class="dynamic-lines" data-dynamic-formset data-form-prefix="items">
@@ -11,6 +11,7 @@
     <div class="line-formset" data-form-rows>{% for item in items %}<div class="line-form sale-line" data-form-row{% if item.DELETE.value %} hidden{% endif %}><span class="line-number">{{ forloop.counter|stringformat:"02d" }}</span>{% for hidden in item.hidden_fields %}{{ hidden }}{% endfor %}{% for field in item.visible_fields %}{% include "components/form_field.html" with field=field only %}{% endfor %}{% include "components/formset_remove_button.html" %}{% if item.non_field_errors %}<div class="field-error line-error">{{ item.non_field_errors }}</div>{% endif %}</div>{% endfor %}</div>
     <template data-empty-form-template><div class="line-form sale-line" data-form-row><span class="line-number">__number__</span>{% for hidden in items.empty_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in items.empty_form.visible_fields %}{% include "components/form_field.html" with field=field only %}{% endfor %}{% include "components/formset_remove_button.html" %}</div></template>
     <button type="button" class="add-line-button" data-add-form-row><span><i data-lucide="plus" class="ui-icon" aria-hidden="true"></i></span> Ajouter un produit</button>
+    {% include "components/live_form_summary.html" with show_discount=True total_label="Net à payer" note="Le total se met à jour pendant votre saisie." only %}
   </div></div>
   <div class="form-actions">{% include "components/button.html" with href=sales_url label="Annuler" variant="ghost" only %}{% include "components/button.html" with type="submit" label="Valider la vente" loading_label="Enregistrement…" only %}</div>
 </form>

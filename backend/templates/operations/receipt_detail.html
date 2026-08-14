@@ -1,0 +1,13 @@
+{% extends "base_app.html" %}
+{% load listing_tags %}
+{% block title %}{{ receipt.receipt_number }} · NexaStock{% endblock %}
+{% block content %}
+<section class="page-heading action-heading">
+  <div><a class="back-link" href="{% url 'operations:stocks' %}"><i data-lucide="chevron-left" class="ui-icon" aria-hidden="true"></i><span>Retour</span></a><h1>{{ receipt.receipt_number }}</h1><p>{{ receipt.supplier_name }} · reçue le {{ receipt.receipt_date|date:"d/m/Y" }}</p></div>
+  <div class="page-heading__actions"><a class="ui-button ui-button--ghost" href="{% url 'operations:receipt-document' receipt.id %}"><i data-lucide="download" class="ui-icon" aria-hidden="true"></i> Télécharger le bon</a>{% if can_manage %}<div class="row-actions">{% url 'operations:receipt-edit' receipt.id as edit_url %}{% include "components/icon_button.html" with href=edit_url label="Modifier le fournisseur" icon="pencil" only %}<form method="post" action="{% url 'operations:receipt-cancel' receipt.id %}" data-confirm-form data-confirm-title="Annuler cette réception ?" data-confirm-text="Les quantités seront retirées du stock par des mouvements compensatoires.">{% csrf_token %}{% include "components/icon_button.html" with type="submit" label="Annuler la réception" icon="circle-x" variant="danger" only %}</form></div>{% endif %}</div>
+</section>
+<section class="detail-grid">
+  <article class="panel"><span class="eyebrow">Récapitulatif</span><dl class="detail-list"><div><dt>Fournisseur</dt><dd>{{ receipt.supplier_name }}</dd></div><div><dt>Date</dt><dd>{{ receipt.receipt_date|date:"d/m/Y" }}</dd></div><div><dt>Statut</dt><dd><span class="status-badge success">{{ receipt.status_label }}</span></dd></div><div class="total"><dt>Total réceptionné</dt><dd>{{ receipt.total_amount|floatformat:"0g" }} FCFA</dd></div></dl></article>
+  <article class="panel data-panel"><div class="panel-heading"><div><span class="eyebrow">Contenu</span><h2>Produits reçus</h2></div><span>{{ items|length }} ligne{{ items|length|pluralize }}</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Produit</th><th>Quantité</th><th>Coût par colis</th><th>Montant</th></tr></thead><tbody>{% for item in items %}<tr><td><strong>{{ item.name }}</strong><small class="block">{{ item.code }}</small></td><td>{{ item.quantity_packages|floatformat:"0g" }} colis</td><td>{{ item.unit_cost|floatformat:"0g" }} FCFA</td><td><strong>{{ item.total_cost|floatformat:"0g" }} FCFA</strong></td></tr>{% endfor %}</tbody></table></div></article>
+</section>
+{% endblock %}
