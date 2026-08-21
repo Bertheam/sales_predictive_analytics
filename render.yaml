@@ -18,7 +18,6 @@ services:
       --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 4 --timeout 600'
     healthCheckPath: /health/
     autoDeployTrigger: commit
-    maxShutdownDelaySeconds: 60
     envVars:
       - fromGroup: nexastock-free-production
       - key: DATABASE_URL
