@@ -1,5 +1,14 @@
+import sys
+from pathlib import Path
+
 import streamlit as st
 from sqlalchemy import text
+
+# Streamlit Community Cloud ajoute le dossier du script (app/) au PYTHONPATH,
+# mais pas toujours la racine du dépôt qui contient le package `app`.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.database.session import SessionLocal
 from app.security.signed_access import require_signed_access, signed_access_is_authorized
