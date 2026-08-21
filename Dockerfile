@@ -38,7 +38,7 @@ COPY --from=frontend --chown=appuser:appuser /build/backend/static/css/tailwind.
 COPY --from=frontend --chown=appuser:appuser /build/backend/static/vendor/lucide/ /app/backend/static/vendor/lucide/
 RUN mkdir -p /app/staticfiles \
     && chown appuser:appuser /app/staticfiles \
-    && chmod +x /app/docker/entrypoint.sh
+    && chmod +x /app/docker/entrypoint.sh /app/docker/render-start.sh
 
 USER appuser
 
