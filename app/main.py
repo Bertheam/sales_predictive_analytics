@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -9,6 +10,25 @@ from sqlalchemy import text
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+
+def _load_cloud_secrets() -> None:
+    """Expose Streamlit Cloud secrets before application settings are imported."""
+    for key in (
+        "DATABASE_URL",
+        "STREAMLIT_SIGNING_KEY",
+        "STREAMLIT_REQUIRE_SIGNED_ACCESS",
+        "STREAMLIT_USE_RUNTIME_ROLE",
+    ):
+        try:
+            value = st.secrets.get(key)
+        except FileNotFoundError:
+            return
+        if value not in (None, ""):
+            os.environ[key] = str(value)
+
+
+_load_cloud_secrets()
 
 from app.database.session import SessionLocal
 from app.security.signed_access import require_signed_access, signed_access_is_authorized
