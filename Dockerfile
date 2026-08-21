@@ -45,7 +45,7 @@ USER appuser
 
 EXPOSE 8080 8501
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=5s --timeout=3s --start-period=90s --retries=3 \
     CMD python -c "import os, urllib.request; port=os.getenv('PORT', '8080'); path=os.getenv('APP_HEALTHCHECK_PATH', '/health/'); path == 'disabled' or urllib.request.urlopen(f'http://localhost:{port}{path}', timeout=3)" || exit 1
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]

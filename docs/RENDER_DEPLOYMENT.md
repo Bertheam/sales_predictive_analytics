@@ -126,6 +126,9 @@ l'entrypoint Docker de lancer une initialisation supplémentaire.
 
 L'image Linux utilise la distribution CPU de XGBoost. Elle conserve les mêmes
 modèles Python, sans embarquer les bibliothèques GPU inutiles sur Render.
+La sonde Docker vérifie `/health/` toutes les cinq secondes et bénéficie d'une
+période de grâce de 90 secondes : un démarrage avec migrations n'est pas déclaré
+en échec, tandis qu'un réveil normal est validé dès que Gunicorn répond.
 
 ## 5. Limites du pilote gratuit
 
