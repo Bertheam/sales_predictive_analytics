@@ -6,7 +6,8 @@ numpy
 plotly
 scikit-learn
 statsmodels>=0.14,<0.15
-xgboost
+xgboost-cpu>=3.3,<3.4; sys_platform == "linux" and platform_machine == "x86_64"
+xgboost>=3.3,<3.4; sys_platform != "linux" or platform_machine != "x86_64"
 SQLAlchemy
 python-dotenv
 psycopg[binary]

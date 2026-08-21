@@ -1,11 +1,9 @@
 #!/bin/sh
 set -eu
 
-# Les migrations sont idempotentes : elles appliquent uniquement les versions
-# absentes et ne réinitialisent jamais la base Neon existante.
-python backend/manage.py migrate --noinput
-python -m alembic upgrade head
-python backend/manage.py collectstatic --noinput --ignore="src/*"
+# Sur Render Free, le conteneur redémarre après chaque mise en veille. Le garde
+# de schéma n'exécute Django/Alembic que si les fichiers de migration ont changé.
+python docker/render_migrations.py
 
 exec gunicorn \
     --chdir backend \

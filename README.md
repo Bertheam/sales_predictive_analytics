@@ -724,8 +724,11 @@ données existantes. Render reçoit ensuite la même URL directe dans
 `DB_NAME`, `DB_USER` et `DB_PASSWORD`.
 
 Le démarrage Render n'exécute jamais `02_schema.sql`, `03_reference_data.sql`,
-`04_indexes.sql`, `generate_sample_data.py` ou le backup. Il applique seulement
-les migrations manquantes et lance Gunicorn. Le chemin de santé est `/health/`.
+`04_indexes.sql`, `generate_sample_data.py` ou le backup. Les fichiers statiques
+sont préparés pendant le build Docker. Au réveil, une empreinte des fichiers de
+migration permet d'ignorer Django et Alembic lorsque le schéma a déjà été validé
+pour cette révision ; une nouvelle migration est appliquée avant Gunicorn puis
+enregistrée dans `nexastock_schema_releases`. Le chemin de santé est `/health/`.
 
 ## Installation sans Docker
 

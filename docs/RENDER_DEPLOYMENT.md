@@ -89,23 +89,31 @@ Utiliser l’URL directe Neon ici permet aux migrations Django et Alembic de
 s’exécuter correctement. Le pilote ne lance qu’un processus Gunicorn, donc le
 nombre de connexions reste faible.
 
-## 4. Démarrage sûr
+## 4. Démarrage sûr et optimisé
 
-À chaque déploiement, Render exécute uniquement :
+Les fichiers statiques Django sont maintenant produits pendant la construction
+de l'image Docker. Ils ne sont donc plus recalculés lorsque Render réveille le
+service gratuit.
+
+Au démarrage, `docker/render_migrations.py` calcule l'empreinte des migrations
+Django et Alembic :
 
 ```text
-migrations Django
-        ↓
-migrations Alembic
-        ↓
-collectstatic
-        ↓
-Gunicorn
+empreinte déjà enregistrée ──► Gunicorn
+             │
+             └── nouvelle empreinte ──► migrations ──► Gunicorn
 ```
 
-Les migrations déjà enregistrées dans `django_migrations` et
-`alembic_version` sont reconnues et ne sont pas rejouées. Le démarrage
-n’exécute jamais :
+Une migration réussie est enregistrée dans `nexastock_schema_releases`. Si une
+migration échoue, l'empreinte n'est pas enregistrée et le prochain démarrage la
+retente. Un verrou PostgreSQL évite aussi que deux instances appliquent le même
+schéma simultanément.
+
+Pour forcer exceptionnellement une nouvelle vérification complète, définir
+temporairement `RENDER_FORCE_MIGRATIONS=true`, redéployer, puis remettre la
+variable à `false`.
+
+Le démarrage n'exécute jamais :
 
 - `02_schema.sql` ;
 - `03_reference_data.sql` ;
@@ -114,7 +122,10 @@ n’exécute jamais :
 - `SPA_DB`.
 
 Les variables `INITIALIZE_DATABASE=false` et `RUN_ALEMBIC=false` empêchent
-l’entrypoint Docker de lancer une initialisation supplémentaire.
+l'entrypoint Docker de lancer une initialisation supplémentaire.
+
+L'image Linux utilise la distribution CPU de XGBoost. Elle conserve les mêmes
+modèles Python, sans embarquer les bibliothèques GPU inutiles sur Render.
 
 ## 5. Limites du pilote gratuit
 

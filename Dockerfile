@@ -36,8 +36,9 @@ RUN useradd --create-home --shell /bin/bash appuser
 COPY --chown=appuser:appuser . .
 COPY --from=frontend --chown=appuser:appuser /build/backend/static/css/tailwind.css /app/backend/static/css/tailwind.css
 COPY --from=frontend --chown=appuser:appuser /build/backend/static/vendor/lucide/ /app/backend/static/vendor/lucide/
-RUN mkdir -p /app/staticfiles \
-    && chown appuser:appuser /app/staticfiles \
+RUN DJANGO_USE_SQLITE=true DJANGO_DEBUG=false \
+        python backend/manage.py collectstatic --noinput --ignore="src/*" \
+    && chown -R appuser:appuser /app/staticfiles \
     && chmod +x /app/docker/entrypoint.sh /app/docker/render-start.sh
 
 USER appuser
@@ -48,4 +49,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD python -c "import os, urllib.request; port=os.getenv('PORT', '8080'); path=os.getenv('APP_HEALTHCHECK_PATH', '/health/'); path == 'disabled' or urllib.request.urlopen(f'http://localhost:{port}{path}', timeout=3)" || exit 1
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]
-CMD ["sh", "-c", "python backend/manage.py migrate --noinput && python -m alembic upgrade head && python backend/manage.py collectstatic --noinput --ignore='src/*' && gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120"]
+CMD ["./docker/render-start.sh"]
