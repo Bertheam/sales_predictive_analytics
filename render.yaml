@@ -1,0 +1,89 @@
+# Render Blueprint gratuit pour NexaStock.
+# PostgreSQL est hébergé sur Neon et restauré séparément depuis SPA_DB.
+
+services:
+  - type: web
+    name: nexastock-web
+    runtime: docker
+    region: frankfurt
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: >-
+      sh -c 'set -e;
+      python backend/manage.py migrate --noinput;
+      python -m alembic upgrade head;
+      python backend/manage.py collectstatic --noinput --ignore="src/*";
+      exec gunicorn --chdir backend config.wsgi:application
+      --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 4 --timeout 600'
+    healthCheckPath: /health/
+    autoDeployTrigger: commit
+    maxShutdownDelaySeconds: 60
+    envVars:
+      - fromGroup: nexastock-free-production
+      - key: DATABASE_URL
+        sync: false
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: STREAMLIT_SIGNING_KEY
+        sync: false
+      - key: STREAMLIT_PUBLIC_URL
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+
+envVarGroups:
+  - name: nexastock-free-production
+    envVars:
+      - key: INITIALIZE_DATABASE
+        value: "false"
+      - key: RUN_ALEMBIC
+        value: "false"
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: .onrender.com
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: https://*.onrender.com
+      - key: DJANGO_SECURE_SSL_REDIRECT
+        value: "true"
+      - key: DJANGO_SECURE_HSTS_SECONDS
+        value: "3600"
+      - key: AUDIT_TRUST_X_FORWARDED_FOR
+        value: "true"
+      - key: TENANT_USE_RUNTIME_ROLE
+        value: "false"
+      - key: DJANGO_EMAIL_BACKEND
+        value: django.core.mail.backends.console.EmailBackend
+      - key: BREVO_API_URL
+        value: https://api.brevo.com/v3/smtp/email
+      - key: EMAIL_TIMEOUT
+        value: "15"
+      - key: CELERY_BROKER_URL
+        value: memory://
+      - key: CELERY_RESULT_BACKEND
+        value: cache+memory://
+      - key: CELERY_TASK_ALWAYS_EAGER
+        value: "true"
+      - key: CELERY_TASK_EAGER_PROPAGATES
+        value: "false"
+      - key: CELERY_AUTOMATION_ENABLED
+        value: "false"
+      - key: API_LOGIN_RATE
+        value: 10/minute
+      - key: API_SENSITIVE_WRITE_RATE
+        value: 60/minute
+      - key: API_NUM_PROXIES
+        value: "1"
+      - key: WEB_LOGIN_MAX_ATTEMPTS
+        value: "8"
+      - key: WEB_LOGIN_WINDOW_SECONDS
+        value: "300"
+      - key: RATE_LIMIT_TRUST_X_FORWARDED_FOR
+        value: "true"
+      - key: FORECAST_MAX_DATA_AGE_DAYS
+        value: "3"
+      - key: FORECAST_CHAMPION_MIN_IMPROVEMENT
+        value: "5"

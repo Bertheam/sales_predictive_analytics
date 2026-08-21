@@ -1,6 +1,24 @@
-Oui, ton idée est cohérente. Je positionnerais le produit comme :
+# Architecture NexaStock
+
+NexaStock est :
 
 > **Un système de gestion de dépôt de boissons avec un copilote prédictif intégré.**
+
+L’hébergement du pilote sépare l’application métier, la base et le laboratoire
+analytique :
+
+```text
+Django        → Render Free
+PostgreSQL    → Neon Free
+Streamlit     → Streamlit Community Cloud
+Emails        → Brevo
+Celery        → Mode synchrone temporaire
+```
+
+La procédure d’installation et les limites de cette architecture sont décrites
+dans [`docs/RENDER_DEPLOYMENT.md`](docs/RENDER_DEPLOYMENT.md). Les capacités et
+tarifs des services externes doivent être vérifiés sur leurs documentations
+officielles avant chaque évolution de l’infrastructure.
 
 Django devient l’application principale, moderne et accessible. Streamlit reste présent, mais comme un espace analytique avancé.
 

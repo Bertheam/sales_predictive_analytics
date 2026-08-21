@@ -11,6 +11,7 @@ backend/static/css/tailwind.css
 backend/static/vendor/lucide/
 *.backup
 *.dump
+SPA_DB
 backups/
 outputs/
 .tmp_presentation/

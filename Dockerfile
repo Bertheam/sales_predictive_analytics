@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM node:22-slim AS frontend
 
 WORKDIR /build
@@ -14,19 +16,20 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=600 \
+    PIP_RETRIES=10 \
     RUN_ALEMBIC=false
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        gcc \
         libgomp1 \
         postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
-RUN python -m pip install -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install -r requirements.txt
 
 RUN useradd --create-home --shell /bin/bash appuser
 
@@ -42,7 +45,7 @@ USER appuser
 EXPOSE 8080 8501
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD python -c "import os, urllib.request; port=os.getenv('PORT', '8080'); path=os.getenv('APP_HEALTHCHECK_PATH', '/health/'); urllib.request.urlopen(f'http://localhost:{port}{path}', timeout=3)" || exit 1
+    CMD python -c "import os, urllib.request; port=os.getenv('PORT', '8080'); path=os.getenv('APP_HEALTHCHECK_PATH', '/health/'); path == 'disabled' or urllib.request.urlopen(f'http://localhost:{port}{path}', timeout=3)" || exit 1
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]
 CMD ["sh", "-c", "python backend/manage.py migrate --noinput && python -m alembic upgrade head && python backend/manage.py collectstatic --noinput --ignore='src/*' && gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120"]

@@ -437,8 +437,8 @@ Une reconstruction reste nécessaire seulement après une modification de
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
-Cette surcharge est strictement locale. Railway continue d'utiliser le
-`Dockerfile` et ne lance ni le serveur Django de développement ni le watcher
+Cette surcharge est strictement locale. Render utilise le `Dockerfile` de
+production et ne lance ni le serveur Django de développement ni le watcher
 Tailwind.
 
 Vérifier que Celery répond :
@@ -559,72 +559,59 @@ indiqué plus haut pour accéder aux données restaurées.
 Les fichiers `*.backup` et `*.dump` sont exclus de l'image Docker. Conservez-les
 dans un emplacement sécurisé et ne les ajoutez jamais au dépôt Git.
 
-## Déploiement sur Railway
+## Déploiement sur Render
 
-Railway détecte automatiquement le `Dockerfile` situé à la racine. Le service
-PostgreSQL du fichier Compose reste réservé au développement local. En
-production, créez idéalement deux services depuis le même dépôt Git :
+Le pilote gratuit est défini par [`render.yaml`](render.yaml). PostgreSQL est
+hébergé sur Neon et restauré avant l'application afin que le premier démarrage
+ne tente jamais de reconstruire une base vide. Le guide complet est disponible dans
+[`docs/RENDER_DEPLOYMENT.md`](docs/RENDER_DEPLOYMENT.md).
 
-```text
-web         → application Django destinée aux clients
-app         → laboratoire Streamlit, accès technique séparé
-Postgres    → base managée commune
-Redis       → file de messages managée ou service Redis privé
-worker      → traitements Celery depuis la même image Docker
-beat        → planificateur Celery depuis la même image Docker
-```
-
-Sur le plan Railway **Hobby**, limité à cinq services, l'architecture déployée
-regroupe provisoirement Worker et Beat dans un même service :
+L'architecture gratuite utilise :
 
 ```text
-Postgres + Django + Streamlit + Redis + celery-worker
-                                      └── Beat intégré
+Render Free                    → application Django et API
+Neon Free                      → PostgreSQL restauré depuis SPA_DB
+Streamlit Community Cloud      → laboratoire technique sécurisé
+Brevo API                      → e-mails transactionnels
 ```
 
-Commande de démarrage correspondante :
+Celery fonctionne temporairement en mode synchrone :
 
-```bash
-celery --workdir=backend -A config worker --beat --loglevel=INFO \
-  --concurrency=2 --schedule=/tmp/celerybeat-schedule
+```text
+Requête Django → tâche Celery exécutée immédiatement → résultat
 ```
 
-Cette configuration convient à une charge modérée. Sur un plan autorisant plus
-de services, séparez de nouveau `worker` et `beat` afin de pouvoir les superviser
-et les redimensionner indépendamment.
+Ce mode évite un Worker et Redis payants. Il convient au pilote, mais les
+prévisions occupent la requête jusqu'à la fin du calcul et les tâches
+périodiques restent désactivées.
 
 ### Variables et démarrage du service Django
 
 Configurez au minimum :
 
 ```dotenv
-DATABASE_URL=${{Postgres.DATABASE_URL}}
+DATABASE_URL=<URL-directe-Neon>
 INITIALIZE_DATABASE=false
 RUN_ALEMBIC=false
-DJANGO_SECRET_KEY=<clé-longue-et-aléatoire>
+DJANGO_SECRET_KEY=<secret-généré-par-Render>
 DJANGO_DEBUG=false
-DJANGO_ALLOWED_HOSTS=<domaine-du-service>
-DJANGO_CSRF_TRUSTED_ORIGINS=https://<domaine-du-service>
+DJANGO_ALLOWED_HOSTS=.onrender.com
+DJANGO_CSRF_TRUSTED_ORIGINS=https://*.onrender.com
 DJANGO_SECURE_SSL_REDIRECT=true
-DJANGO_SECURE_HSTS_SECONDS=31536000
+DJANGO_SECURE_HSTS_SECONDS=3600
 AUDIT_TRUST_X_FORWARDED_FOR=true
 STREAMLIT_PUBLIC_URL=https://<domaine-du-laboratoire>
-STREAMLIT_SIGNING_KEY=<secret-partage-long-et-aleatoire>
+STREAMLIT_SIGNING_KEY=<secret-partagé-avec-Streamlit-Cloud>
 STREAMLIT_ACCESS_TOKEN_TTL_SECONDS=300
 DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp-relay.brevo.com
-EMAIL_PORT=587
-EMAIL_HOST_USER=<identifiant-smtp-brevo>
-EMAIL_HOST_PASSWORD=<clé-smtp-brevo>
 EMAIL_TIMEOUT=15
 BREVO_API_KEY=<clé-api-brevo>
 BREVO_API_URL=https://api.brevo.com/v3/smtp/email
-EMAIL_USE_TLS=true
-EMAIL_USE_SSL=false
 DEFAULT_FROM_EMAIL=NexaStock <adresse-verifiee@votre-domaine.com>
-CELERY_BROKER_URL=${{Redis.REDIS_URL}}
-CELERY_RESULT_BACKEND=${{Redis.REDIS_URL}}
-DJANGO_CACHE_URL=${{RedisCache.REDIS_URL}}
+CELERY_BROKER_URL=memory://
+CELERY_RESULT_BACKEND=cache+memory://
+CELERY_TASK_ALWAYS_EAGER=true
+CELERY_TASK_EAGER_PROPAGATES=false
 API_LOGIN_RATE=10/minute
 API_SENSITIVE_WRITE_RATE=60/minute
 API_NUM_PROXIES=1
@@ -636,57 +623,27 @@ FORECAST_MAX_DATA_AGE_DAYS=3
 FORECAST_CHAMPION_MIN_IMPROVEMENT=5
 ```
 
-Sur Railway, créez `worker` et `beat` depuis le même dépôt et la même image que
-Django. Ils partagent `DATABASE_URL`, `CELERY_BROKER_URL` et
-`CELERY_RESULT_BACKEND`, mais n'exécutent ni migrations ni initialisation SQL.
-Ajoutez donc explicitement `INITIALIZE_DATABASE=false` et `RUN_ALEMBIC=false`
-aux variables de ces deux services.
+`INITIALIZE_DATABASE=false` et `RUN_ALEMBIC=false` empêchent toute
+réinitialisation depuis l'entrypoint Docker. Le cache mémoire local suffit car
+le Blueprint lance un seul processus Gunicorn. `API_NUM_PROXIES=1` et
+`RATE_LIMIT_TRUST_X_FORWARDED_FOR=true` ne sont utilisés qu'en production
+derrière Render ; conservez respectivement `0` et `false` en local.
 
-`DJANGO_CACHE_URL` alimente le cache partagé utilisé par la limitation de
-débit. Le second service Redis peut lui être dédié (`RedisCache` dans l'exemple)
-afin de ne pas mélanger ces clés avec la file Celery. Sans cette variable,
-Django utilise un cache mémoire local : cela dépanne en développement, mais ne
-garantit pas une limite commune entre plusieurs instances de production. Le
-login web est bloqué temporairement après 8 échecs depuis une même adresse IP ;
-l'API limite séparément les tentatives de connexion et les écritures. Activez
-`RATE_LIMIT_TRUST_X_FORWARDED_FOR` uniquement derrière le proxy Railway ou un
-autre proxy maîtrisé. `API_NUM_PROXIES=1` indique à Django REST Framework que
-Railway est le seul proxy placé devant l'application ; conservez `0` en local.
-
-Commande de démarrage du worker :
-
-```bash
-celery --workdir=backend -A config worker --loglevel=INFO --concurrency=2
-```
-
-Commande de démarrage du planificateur :
-
-```bash
-celery --workdir=backend -A config beat --loglevel=INFO --schedule=/tmp/celerybeat-schedule
-```
-
-Déployez dans l'ordre `Postgres/Redis`, `web`, puis le service Celery combiné
-sur Hobby — ou `worker` et `beat` séparément sur un plan supérieur. N'activez
-`CELERY_AUTOMATION_ENABLED=true` qu'après avoir validé une prévision manuelle
-en production.
-
-Sur Railway Free, Trial ou Hobby, utilisez `BREVO_API_KEY` : l'envoi passe par
-l'API transactionnelle HTTPS, car les connexions SMTP sortantes y sont
-bloquées. Le transport SMTP reste disponible comme fallback local ou sur une
-offre Railway compatible. Vérifiez l'adresse expéditrice dans Brevo et
-authentifiez idéalement son domaine avec DKIM et DMARC.
+Utilisez `BREVO_API_KEY` pour l'envoi transactionnel HTTPS. Les services web
+gratuits Render bloquent notamment les ports SMTP 25, 465 et 587, et l'API
+Brevo donne un comportement identique quel que soit le plan. Vérifiez l'adresse
+expéditrice dans Brevo et authentifiez idéalement son domaine avec DKIM et
+DMARC.
 Les invitations utilisent `backend/templates/emails/company_invitation.html`
 avec un fallback texte. Django crée l'invitation immédiatement, puis Celery
-effectue l'envoi SMTP avec plusieurs tentatives. La page **Équipe** affiche
+effectue l'envoi Brevo avec plusieurs tentatives. La page **Équipe** affiche
 `En attente d'envoi`, `Envoi en cours`, `E-mail envoyé` ou `Échec de l'envoi`.
 Le libellé métier « E-mail envoyé » signifie techniquement que Brevo a accepté
 le message ; la livraison finale dans la boîte du destinataire reste
 consultable dans les journaux transactionnels Brevo.
 
 L'action **Renvoyer le lien** invalide l'ancien jeton, prolonge la validité de
-trois jours et remet un nouvel e-mail en file. Le worker et le service Django
-doivent donc partager les variables SMTP ci-dessus en plus de `DATABASE_URL`
-et `CELERY_BROKER_URL`.
+trois jours et réexécute immédiatement l'envoi dans le pilote gratuit.
 
 ### Fraîcheur et sécurité des prévisions
 
@@ -735,107 +692,40 @@ des résidus du backtesting. Ces trois niveaux sont persistés dans
 servent à dimensionner progressivement le risque de stock. Le classement expose
 également WAPE et le biais, en complément de MAE, RMSE et MAPE.
 
-Pour Mailtrap Sandbox : ouvrez **Email Testing → Sandboxes → votre inbox →
-Integration → SMTP**, puis copiez les variables proposées. Les messages restent
-dans Mailtrap et ne sont pas remis aux destinataires réels.
+### Laboratoire Streamlit Community Cloud
 
-Pour l'envoi réel : ouvrez **Email Sending → Sending Domains**, ajoutez votre
-domaine, publiez les enregistrements DNS demandés et attendez sa validation.
-Dans **Integrations → Transactional Stream → SMTP**, récupérez ensuite le host,
-le port, le username et le mot de passe SMTP. `MAIL_FROM_ADDRESS` doit utiliser
-le domaine vérifié. Ne placez jamais ces secrets dans Git.
+Déployez `app/main.py` depuis le même dépôt GitHub, puis configurez les secrets
+suivants dans Streamlit Community Cloud :
 
-Utilisez cette **Start Command** pour Django :
-
-```bash
-sh -c 'python backend/manage.py migrate --noinput && python -m alembic upgrade head && python backend/manage.py collectstatic --noinput --ignore="src/*" && gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120'
+```toml
+DATABASE_URL = "postgresql://...url-neon..."
+STREAMLIT_USE_RUNTIME_ROLE = "false"
+STREAMLIT_SIGNING_KEY = "meme-secret-que-render"
+STREAMLIT_REQUIRE_SIGNED_ACCESS = "true"
 ```
-
-Son chemin de contrôle de santé est `/health/`.
-
-### Variables du service Streamlit
-
-Dans l'onglet **Variables** du service applicatif, configurez :
-
-```dotenv
-DATABASE_URL=${{Postgres.DATABASE_URL}}
-INITIALIZE_DATABASE=false
-RUN_ALEMBIC=false
-STREAMLIT_USE_RUNTIME_ROLE=false
-STREAMLIT_SIGNING_KEY=<meme-secret-que-le-service-django>
-STREAMLIT_REQUIRE_SIGNED_ACCESS=true
-```
-
-Adaptez `Postgres` si le service PostgreSQL porte un autre nom dans Railway.
-`DATABASE_URL` est prioritaire sur les variables `DB_HOST`, `DB_PORT`,
-`DB_NAME`, `DB_USER` et `DB_PASSWORD`.
 
 Le secret de signature doit être identique sur Django et Streamlit. Django crée
 un lien valable cinq minutes contenant le dépôt actif ; Streamlit refuse tout
 accès direct ou tout jeton altéré avant d'ouvrir une session PostgreSQL.
 
-Railway injecte automatiquement `PORT`. Configurez cette Start Command :
+### Restaurer une base Neon vide
+
+Utilisez l'URL directe Neon, sans `-pooler` :
 
 ```bash
-python -m streamlit run app/main.py \
-  --server.address=0.0.0.0 \
-  --server.port=${PORT:-8501}
+export NEON_DATABASE_URL='postgresql://...url-directe-neon...'
+./scripts/restore_neon_backup.sh SPA_DB
+unset NEON_DATABASE_URL
 ```
 
-```bash
-sh -c 'python -m streamlit run app/main.py --server.address=0.0.0.0 --server.port=${PORT:-8501} --server.headless=true'
-```
+Le script refuse une base contenant déjà des tables et ne supprime jamais des
+données existantes. Render reçoit ensuite la même URL directe dans
+`DATABASE_URL`. Cette variable reste prioritaire sur `DB_HOST`, `DB_PORT`,
+`DB_NAME`, `DB_USER` et `DB_PASSWORD`.
 
-Le démarrage Railway suit uniquement ce cycle :
-
-```text
-Validation du lien signé Django
-              ↓
-Sélection du dépôt autorisé
-              ↓
-Connexion au PostgreSQL Railway
-              ↓
-Streamlit sur le port Railway
-```
-
-Il ne lance jamais automatiquement :
-
-- `02_schema.sql` ;
-- `03_reference_data.sql` ;
-- `04_indexes.sql` ;
-- `generate_sample_data.py`.
-
-L'initialisation SQL n'est exécutée que lorsque
-`INITIALIZE_DATABASE=true`, valeur utilisée par Docker Compose local pour une
-base neuve. Sur Railway, conservez toujours cette variable à `false` après la
-restauration du backup.
-
-### Restaurer la base avant le premier déploiement
-
-1. Créez le service PostgreSQL dans Railway.
-2. Utilisez les paramètres du **TCP Proxy** Railway pour restaurer le backup
-   avec pgAdmin ou `pg_restore`.
-3. Vérifiez que le schéma et la table `alembic_version` sont présents.
-4. Configurez `DATABASE_URL=${{Postgres.DATABASE_URL}}` sur le service web.
-5. Déployez ou redéployez d'abord Django, puis Streamlit.
-6. Créez votre compte et exécutez `claim_legacy_company` depuis le service web
-   pour réclamer les données restaurées.
-
-Une base Railway totalement vide ne peut pas recevoir directement les migrations
-Alembic actuelles, car celles-ci prolongent le schéma initial. Il faut donc soit
-restaurer le backup, soit effectuer une initialisation contrôlée avant le premier
-démarrage.
-
-### Santé du service
-
-Dans les paramètres Railway, utilisez le chemin de healthcheck Streamlit :
-
-```text
-/_stcore/health
-```
-
-Le conteneur écoute sur `0.0.0.0` et sur la valeur de `PORT` fournie par
-Railway.
+Le démarrage Render n'exécute jamais `02_schema.sql`, `03_reference_data.sql`,
+`04_indexes.sql`, `generate_sample_data.py` ou le backup. Il applique seulement
+les migrations manquantes et lance Gunicorn. Le chemin de santé est `/health/`.
 
 ## Installation sans Docker
 
@@ -1404,8 +1294,8 @@ l'installation.
 Avant d'exposer la plateforme à des données réelles, il faut notamment prévoir :
 
 - des tests systématiques empêchant toute lecture entre deux dépôts ;
-- un utilisateur PostgreSQL de production non-superviseur et sans privilège
-  `BYPASSRLS` ; le rôle managé Railway répond normalement à cette exigence ;
+- un utilisateur PostgreSQL applicatif sans privilège `BYPASSRLS`, avec des
+  tests RLS exécutés après chaque migration de plateforme ;
 - HTTPS et une gestion sécurisée des secrets ;
 - des sauvegardes PostgreSQL automatisées ;
 - une stratégie de tests automatisés et de déploiement ;
